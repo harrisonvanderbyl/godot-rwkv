@@ -15,11 +15,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         body = body.decode('utf-8')
         body = body.strip()
 
+        print(body)
+
         tokens = tokenizer.encode(body)
+
+        tokens = [str(x) for x in tokens]
+
+        ret = ","
+        ret.join(tokens)
+        # set content length
+        out = ret.join(tokens).encode('utf-8')
+        self.send_header('Content-Length', len(out))
 
         self.send_response(HTTPStatus.OK)
         self.end_headers()
-        self.wfile.write(str(tokens).encode('utf-8'))
+        self.wfile.write(out)
 
     def do_PUT(self):
         # Get body
@@ -29,6 +39,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         body = body.strip()
 
         # array is a list of integers like "1,2,3,4" turn into array
+        print(body)
 
         body = body.split(",")
         body = [int(x) for x in body]
@@ -36,21 +47,29 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         tokens = tokenizer.decode(body)
 
         self.send_response(HTTPStatus.OK)
+
+        out = tokens.encode('utf-8')
+
+        # set content length
+        self.send_header('Content-Length', len(out))
+
         self.end_headers()
-        self.wfile.write(tokens.encode('utf-8'))
 
-    def do_DELETE(self):
-        # shutdown server
-        self.send_response(HTTPStatus.OK)
-        self.end_headers()
-        self.wfile.write("OK")
-        exit(0)
+        print(out)
+        self.wfile.write(out)
 
-    def do_GET(self):
-        self.send_response(HTTPStatus.OK)
-        self.end_headers()
-        self.wfile.write("OK")
+    # def do_DELETE(self):
+    #     # shutdown server
+    #     self.send_response(HTTPStatus.OK)
+    #     self.end_headers()
+    #     self.wfile.write("OK")
+    #     exit(0)
+
+    # def do_GET(self):
+    #     self.send_response(HTTPStatus.OK)
+    #     self.end_headers()
+    #     self.wfile.write("OK")
 
 
-httpd = socketserver.TCPServer(('', 8999), Handler)
+httpd = socketserver.TCPServer(('', 9002), Handler)
 httpd.serve_forever()

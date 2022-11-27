@@ -5,7 +5,7 @@
 #include "core/io/resource.h"
 #include "core/object/ref_counted.h"
 // #include "rwkv/lite/model.h"
-
+#include "tokenizer.h"
 #include "torch/script.h"
 // #include "rwkv/lite/op_resolver.h"
 // #include "rwkv/lite/optional_debug_tools.h"
@@ -24,6 +24,7 @@ private:
 	torch::jit::script::Module preprocess;
 	torch::jit::script::Module postprocess;
 	std::vector<torch::jit::script::Module> layers;
+	Ref<TokenizerServer> tokenizer;
 	at::Tensor emptyState;
 	at::Tensor currentState;
 	// std::unique_ptr<RWKV::Interpreter> interpreter;
@@ -37,9 +38,18 @@ protected:
 		ClassDB::bind_method(D_METHOD("set_empty_state"), &RWKV::set_empty_state);
 		ClassDB::bind_method(D_METHOD("detokenize"), &RWKV::detokenize);
 		ClassDB::bind_method(D_METHOD("tokenize"), &RWKV::tokenize);
+		ClassDB::bind_method(D_METHOD("get_tokenizer"), &RWKV::get_tokenizer);
+		ClassDB::bind_method(D_METHOD("set_tokenizer"), &RWKV::set_tokenizer);
+		ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "tokenizer", PROPERTY_HINT_RESOURCE_TYPE, "TokenizerServer"), "set_tokenizer", "get_tokenizer");
 	}
 
 public:
+	void set_tokenizer(Ref<TokenizerServer> inp) {
+		tokenizer = inp;
+	}
+	Ref<TokenizerServer> get_tokenizer() {
+		return tokenizer;
+	}
 	void set_preprocess(const String &p_path) {
 		const char *c = p_path.utf8().get_data();
 
@@ -80,41 +90,15 @@ public:
 		}
 	}
 
-	String detokenize(const PackedInt32Array &p_input) {
-		String output = "";
-		for (int i = 0; i < p_input.size(); i++) {
-			output += decoderMap[p_input[i]];
-		}
-		return output;
+	String detokenize(const String &p_input) {
+		return tokenizer->req(HTTPClient::METHOD_PUT, p_input);
 	}
 
-	void startTokeniserServer(int port){
-		
+	void startTokeniserServer(int port) {
 	}
 
-	PackedInt32Array tokenize(const String &p_input) {
-		PackedInt32Array outputArr = PackedInt32Array();
-		auto temp = p_input;
-		// Get first 10 characters
-		while (temp.length() > 0) {
-			for (int i = 10; i > 0; i--) {
-				try {
-					auto temptemp = temp.substr(0, i);
-					int output = encoderMap[temptemp.utf8().get_data()];
-					if (output == 0 and temptemp.length() > 1) {
-						continue;
-					}
-					outputArr.append(output);
-					temp = temp.substr(i, temp.length() - i);
-					break;
-
-				} catch (const std::out_of_range &e) {
-					// Do nothing
-				}
-			}
-		}
-
-		return outputArr;
+	String tokenize(const String &p_input) {
+		return tokenizer->req(HTTPClient::METHOD_POST, p_input);
 	}
 
 	void set_empty_state(const PackedInt32Array &p_state) {
