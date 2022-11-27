@@ -10,7 +10,7 @@
 // #include "rwkv/lite/op_resolver.h"
 // #include "rwkv/lite/optional_debug_tools.h"
 // #include "<iostream>"
-#define RWKV_MINIMAL_CHECK(x)                                  \
+#define RWKV_MINIMAL_CHECK(x)                                    \
 	if (!(x)) {                                                  \
 		fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__); \
 		exit(1);                                                 \
@@ -36,6 +36,7 @@ protected:
 		ClassDB::bind_method(D_METHOD("invoke"), &RWKV::invoke);
 		ClassDB::bind_method(D_METHOD("set_empty_state"), &RWKV::set_empty_state);
 		ClassDB::bind_method(D_METHOD("detokenize"), &RWKV::detokenize);
+		ClassDB::bind_method(D_METHOD("tokenize"), &RWKV::tokenize);
 	}
 
 public:
@@ -87,6 +88,35 @@ public:
 		return output;
 	}
 
+	void startTokeniserServer(int port){
+		
+	}
+
+	PackedInt32Array tokenize(const String &p_input) {
+		PackedInt32Array outputArr = PackedInt32Array();
+		auto temp = p_input;
+		// Get first 10 characters
+		while (temp.length() > 0) {
+			for (int i = 10; i > 0; i--) {
+				try {
+					auto temptemp = temp.substr(0, i);
+					int output = encoderMap[temptemp.utf8().get_data()];
+					if (output == 0 and temptemp.length() > 1) {
+						continue;
+					}
+					outputArr.append(output);
+					temp = temp.substr(i, temp.length() - i);
+					break;
+
+				} catch (const std::out_of_range &e) {
+					// Do nothing
+				}
+			}
+		}
+
+		return outputArr;
+	}
+
 	void set_empty_state(const PackedInt32Array &p_state) {
 		try {
 			// Deserialize the ScriptModule from a file using torch::jit::load().
@@ -105,7 +135,7 @@ public:
 		// Execute the model and turn its output into a tensor.
 		auto output = preprocess.forward(inputs).toTensor();
 
-		print_line("got preprocess output");
+		// print_line("got preprocess output");
 
 		std::vector<torch::jit::IValue> states;
 
@@ -118,7 +148,7 @@ public:
 			states = stateso->elements();
 		}
 
-		printf("got layers output");
+		// printf("got layers output");
 
 		currentState = states[1].toTensor();
 
@@ -128,7 +158,7 @@ public:
 		// Execute the model and turn its output into a tensor.
 		at::Tensor output2 = postprocess.forward(outputs).toTensor();
 
-		printf("got postprocess output");
+		// printf("got postprocess output");
 
 		// Top-k decoding
 		auto topk = output2.topk(5);
@@ -138,7 +168,7 @@ public:
 
 		std::tie(topk_values, topk_indices) = topk;
 
-		printf("got topk output");
+		// printf("got topk output");
 
 		// print_line("got postprocess output");
 
