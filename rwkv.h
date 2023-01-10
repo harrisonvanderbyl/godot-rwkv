@@ -7,34 +7,36 @@
 // #include "rwkv/lite/model.h"
 #include "tokenizer.h"
 #include "torch/script.h"
+
 // #include "rwkv/lite/op_resolver.h"
 // #include "rwkv/lite/optional_debug_tools.h"
 // #include "<iostream>"
-#define RWKV_MINIMAL_CHECK(x)                                    \
-	if (!(x)) {                                                  \
-		fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__); \
-		exit(1);                                                 \
-	}
+
+// printf("got postprocess output");
+// #define RWKV_MINIMAL_CHECK(x)                                    \
+// 	if (!(x)) {                                                  \
+// 		fprintf(stderr, "Error at %s:%d\n", __FILE__, __LINE__); \
+// 		exit(1);                                                 \
+// 	}
 // Generator based on a script, like GDScript, C# or NativeScript.
 // The script is expected to properly handle multithreading.
 class RWKV : public Resource {
 	GDCLASS(RWKV, Resource);
 
 private:
-	torch::jit::script::Module preprocess;
-	torch::jit::script::Module postprocess;
-	std::vector<torch::jit::script::Module> layers;
+	torch::jit::script::Module model;
 	Ref<TokenizerServer> tokenizer;
 	at::Tensor emptyState;
 	at::Tensor currentState;
+	int lastToken = 187;
+
 	// std::unique_ptr<RWKV::Interpreter> interpreter;
 
 protected:
 	static void _bind_methods() {
-		ClassDB::bind_method(D_METHOD("set_preprocess"), &RWKV::set_preprocess);
-		ClassDB::bind_method(D_METHOD("set_postprocess"), &RWKV::set_postprocess);
-		ClassDB::bind_method(D_METHOD("set_layers"), &RWKV::set_layers);
-		ClassDB::bind_method(D_METHOD("invoke"), &RWKV::invoke);
+		ClassDB::bind_method(D_METHOD("set_model"), &RWKV::set_model);
+		ClassDB::bind_method(D_METHOD("forward"), &RWKV::forward);
+		ClassDB::bind_method(D_METHOD("load_context"), &RWKV::load_context);
 		ClassDB::bind_method(D_METHOD("set_empty_state"), &RWKV::set_empty_state);
 		ClassDB::bind_method(D_METHOD("detokenize"), &RWKV::detokenize);
 		ClassDB::bind_method(D_METHOD("tokenize"), &RWKV::tokenize);
@@ -50,43 +52,16 @@ public:
 	Ref<TokenizerServer> get_tokenizer() {
 		return tokenizer;
 	}
-	void set_preprocess(const String &p_path) {
+	void set_model(const String &p_path) {
 		const char *c = p_path.utf8().get_data();
 
 		try {
 			// Deserialize the ScriptModule from a file using torch::jit::load().
-			preprocess = torch::jit::load(c);
-			printf("Loaded preprocess model");
+			model = torch::jit::load(c);
+			printf("Loaded model");
 
 		} catch (const c10::Error &e) {
-			printf("error loading the model\n");
-		}
-	}
-
-	void set_postprocess(const String &p_path) {
-		const char *c = p_path.utf8().get_data();
-
-		try {
-			// Deserialize the ScriptModule from a file using torch::jit::load().
-			postprocess = torch::jit::load(c);
-			printf("Loaded postprocess model");
-		} catch (const c10::Error &e) {
-			printf("error loading the model\n");
-		}
-	}
-
-	void set_layers(const PackedStringArray &p_layers) {
-		for (int i = 0; i < p_layers.size(); i++) {
-			String p_path = p_layers[i];
-			const char *c = p_path.utf8().get_data();
-
-			try {
-				// Deserialize the ScriptModule from a file using torch::jit::load().
-				layers.push_back(torch::jit::load(c));
-				printf("Loaded layer model");
-			} catch (const c10::Error &e) {
-				printf("error loading the model\n");
-			}
+			printf("error the model\n");
 		}
 	}
 
@@ -112,40 +87,33 @@ public:
 		}
 	}
 
+	void load_context(String s) {
+		auto tokens = tokenize(s);
+		auto token_ids = tokens.split(",");
+		for (int i = 0; i < token_ids.size(); i++) {
+			int token_id = token_ids[i].to_int();
+			invoke(token_id);
+		}
+	}
+
 	int invoke(int num) {
 		std::vector<torch::jit::IValue> inputs;
-		inputs.push_back(at::tensor(num, torch::kInt64));
+		inputs.push_back(at::tensor(num, at::kLong));
+		inputs.push_back(currentState);
 
 		// Execute the model and turn its output into a tensor.
-		auto output = preprocess.forward(inputs).toTensor();
+		auto output = model.forward(inputs).toTuple();
 
-		// print_line("got preprocess output");
+		// get the tensors from tuple
+		auto output_state = output->elements()[1].toTensor();
+		auto output_logits = output->elements()[0].toTensor();
 
-		std::vector<torch::jit::IValue> states;
-
-		states.push_back(output);
-		states.push_back(currentState);
-
-		for (uint i = 0; i < layers.size(); i++) {
-			// Execute the model and turn its output into a tensor.
-			auto stateso = layers[i].forward(states).toTuple();
-			states = stateso->elements();
-		}
-
-		// printf("got layers output");
-
-		currentState = states[1].toTensor();
-
-		std::vector<torch::jit::IValue> outputs;
-		outputs.push_back(states[0]);
-
-		// Execute the model and turn its output into a tensor.
-		at::Tensor output2 = postprocess.forward(outputs).toTensor();
+		currentState = output_state;
 
 		// printf("got postprocess output");
 
 		// Top-k decoding
-		auto topk = output2.topk(5);
+		auto topk = output_logits.topk(5);
 
 		at::Tensor topk_indices;
 		at::Tensor topk_values;
@@ -155,10 +123,15 @@ public:
 		// printf("got topk output");
 
 		// print_line("got postprocess output");
+		lastToken = topk_indices[rand() % 5].item<int>();
 
-		return topk_indices[rand() % 5].item<int>();
+		return lastToken;
 
 		// Top_p sample
+	}
+
+	String forward() {
+		return detokenize(String::num_int64(invoke(lastToken)));
 	}
 
 	RWKV(){

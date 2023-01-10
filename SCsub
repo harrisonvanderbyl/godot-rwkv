@@ -9,13 +9,14 @@ env_rwkv = env_modules.Clone()
 env_rwkv.Prepend(CPPPATH=[
     'libtorch/include', 'libtorch/lib'])
 
-env_rwkv.Prepend(LIBPATH=['libtorch/lib'])
+# env_rwkv.Prepend(LIBPATH=['libtorch/lib'])
 # env_rwkv.Prepend(CCFLAGS=[
 #                        '-DCMAKE_PREFIX_PATH=/home/harrison/projects/godot/modules/rwkv/libtorch', "-D_GLIBCXX_USE_CXX11_ABI=0"])
 # get current directory
 cenv = cwd
 print(cenv)
 libfolder = cenv+'/libtorch/lib'
+
 if os.path.exists(libfolder):
     print("libtorch folder found")
 else:
@@ -26,15 +27,40 @@ else:
     print("Extracting libtorch")
     os.system("unzip libtorch-cxx11-abi-shared-with-deps-latest.zip")
 
-env.Prepend(
-    LIBPATH=[libfolder])
+env_rwkv.Prepend(
+    LIBPATH=[libfolder,  "/lib/x86_64-linux-gnu"])
+# env.Prepend(RPATH=[libfolder,
+#                    ])
+
+# env_rwkv.Append(CPPDEFINES={'-D_GLIBCXX_USE_CXX11_ABI': 0})
+# env_rwkv.Append(CPPDEFINES={'-DCMAKE_PREFIX_PATH': cenv+'/libtorch'})
+
 
 # get all .so files in libfolder
-libs = [f for f in os.listdir(libfolder) if f.endswith('.so')]
+libs = []
+for file in os.listdir(libfolder):
+    if file.endswith(".so") or file.endswith(".a"):
+        libs.append(file)
+
+
+# env_rwkv.Append(LIBS=libs)  # .so',
 
 env.Append(LIBS=libs)  # .so',
+env.Append(RPATH=libfolder)
+env.Append(LIBPATH=libfolder)
+
+
+# add python library
+env.Append(LIBS=['python3.10', "pthread"])
+env.Append(LIBPATH=['/lib/x86_64-linux-gnu'])
+# -Wl,-znodelete
+env_rwkv.Append(LINKFLAGS=['-Wl,-znodelete'])
+
+# use c++ 17
+env_rwkv.Append(CPPFLAGS=['-std=c++20'])
 
 # env_thirdparty.add_source_files(env.modules_sources, source)
+
 
 # Godot's own source files
 env_rwkv.add_source_files(env.modules_sources, "*.cpp")
