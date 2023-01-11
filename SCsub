@@ -39,15 +39,18 @@ env_rwkv.Prepend(
 # get all .so files in libfolder
 libs = []
 for file in os.listdir(libfolder):
-    if file.endswith(".so") or file.endswith(".a"):
+    if file.endswith(".so") :
         libs.append(file)
-
 
 # env_rwkv.Append(LIBS=libs)  # .so',
 
 env.Append(LIBS=libs)  # .so',
 env.Append(RPATH=libfolder)
 env.Append(LIBPATH=libfolder)
+
+# add rpath
+
+env.Append(RPATH=libfolder)
 
 
 # add python library
