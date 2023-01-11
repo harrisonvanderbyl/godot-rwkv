@@ -70,6 +70,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     #     self.end_headers()
     #     self.wfile.write("OK")
 
-
-httpd = socketserver.TCPServer(('', 9002), Handler)
+port = int(input("Port:"))
+print("listening on port:",port)
+httpd = socketserver.TCPServer(('', port), Handler)
 httpd.serve_forever()
