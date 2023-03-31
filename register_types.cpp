@@ -33,17 +33,12 @@
 #include "editor/editor_node.h"
 // #include "loader_tflite.h"
 #include "rwkv.h"
-#include "tokenizer.h"
 
 void initialize_rwkv_module(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
 	ClassDB::register_class<RWKV>();
-	ClassDB::register_class<TokenizerServer>();
-	// ClassDB::register_virtual_class<AiInstance>();
-	// ClassDB::register_class<rwkvAiInstance>();
-	// ClassDB::register_class<rwkvModel>();
 }
 
 void uninitialize_rwkv_module(ModuleInitializationLevel p_level) {

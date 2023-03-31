@@ -5,52 +5,21 @@ Import('env')
 Import('env_modules')
 cwd = os.getcwd()
 env_rwkv = env_modules.Clone()
-
-env_rwkv.Prepend(CPPPATH=[
-    'libtorch/include', 'libtorch/lib'])
-
-# env_rwkv.Prepend(LIBPATH=['libtorch/lib'])
-# env_rwkv.Prepend(CCFLAGS=[
-#                        '-DCMAKE_PREFIX_PATH=/home/harrison/projects/godot/modules/rwkv/libtorch', "-D_GLIBCXX_USE_CXX11_ABI=0"])
-# get current directory
-cenv = cwd
-print(cenv)
-libfolder = cenv+'/libtorch/lib'
-
-if os.path.exists(libfolder):
-    print("libtorch folder found")
-else:
-    # download libtorch
-    downloadpath = "https://download.pytorch.org/libtorch/nightly/cpu/libtorch-cxx11-abi-shared-with-deps-latest.zip"
-    print("Downloading libtorch")
-    os.system("wget "+downloadpath)
-    print("Extracting libtorch")
-    os.system("unzip libtorch-cxx11-abi-shared-with-deps-latest.zip")
+# get cwd
+cenv = os.getcwd()
 
 env_rwkv.Prepend(
-    LIBPATH=[libfolder,  "/lib/x86_64-linux-gnu"])
+    LIBPATH=["/lib/x86_64-linux-gnu"])
 # env.Prepend(RPATH=[libfolder,
 #                    ])
 
 # env_rwkv.Append(CPPDEFINES={'-D_GLIBCXX_USE_CXX11_ABI': 0})
 # env_rwkv.Append(CPPDEFINES={'-DCMAKE_PREFIX_PATH': cenv+'/libtorch'})
 
-
-# get all .so files in libfolder
-libs = []
-for file in os.listdir(libfolder):
-    if file.endswith(".so") :
-        libs.append(file)
-
-# env_rwkv.Append(LIBS=libs)  # .so',
-
-env.Append(LIBS=libs)  # .so',
-env.Append(RPATH=libfolder)
-env.Append(LIBPATH=libfolder)
-
-# add rpath
-
-env.Append(RPATH=libfolder)
+# add pybind11
+env_rwkv.Append(CPPPATH=['/usr/include/python3.10'])
+# add ./pybind11/include
+env_rwkv.Append(CPPPATH=['./pybind11/include'])
 
 
 # add python library
@@ -60,7 +29,7 @@ env.Append(LIBPATH=['/lib/x86_64-linux-gnu'])
 env_rwkv.Append(LINKFLAGS=['-Wl,-znodelete'])
 
 # use c++ 17
-env_rwkv.Append(CPPFLAGS=['-std=c++20'])
+env_rwkv.Append(CPPFLAGS=['-std=c++17'])
 
 # env_thirdparty.add_source_files(env.modules_sources, source)
 
