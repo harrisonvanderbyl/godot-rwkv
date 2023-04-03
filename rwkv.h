@@ -19,6 +19,7 @@ class RWKV : public Resource {
 public:
 
 	py::object model;
+	std::vector<py::object> states;
 	RWKV() {}
 	void loadModel(String path) {
 		py::module load = py::module::import("rwkvstic.load");
@@ -35,11 +36,29 @@ public:
 		return String(model.attr("forward")("number"_a = number).attr("get")("output").cast<std::string>().c_str());
 	};
 
+	void resetState() {
+		model.attr("resetState")();
+	};
+
+	int getState() {
+		states.push_back(model.attr("getState")());
+		return states.size() - 1;
+	};
+
+	void setState(int state) {
+		model.attr("setState")("state"_a = states[state]);
+	};
+
+
+
 	protected:
 	static void _bind_methods() {
 		ClassDB::bind_method(D_METHOD("loadContext"), &RWKV::loadContext);
 		ClassDB::bind_method(D_METHOD("forward"), &RWKV::forward);	
 		ClassDB::bind_method(D_METHOD("loadModel"), &RWKV::loadModel);
+		ClassDB::bind_method(D_METHOD("resetState"), &RWKV::resetState);
+		ClassDB::bind_method(D_METHOD("getState"), &RWKV::getState);
+		ClassDB::bind_method(D_METHOD("setState"), &RWKV::setState);
 	}
 };
 
