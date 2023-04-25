@@ -16,20 +16,33 @@ env_rwkv.Prepend(
 # env_rwkv.Append(CPPDEFINES={'-D_GLIBCXX_USE_CXX11_ABI': 0})
 # env_rwkv.Append(CPPDEFINES={'-DCMAKE_PREFIX_PATH': cenv+'/libtorch'})
 
-# add pybind11
-env_rwkv.Append(CPPPATH=['/usr/include/python3.10'])
-# add ./pybind11/include
-env_rwkv.Append(CPPPATH=['./pybind11/include'])
+# add ./rwkv/include
+env_rwkv.Append(CPPPATH=['./rwkv-cpp-cuda/include'])
+
+# add nvcc to compile ./rwkv-cpp-cuda/include/cuda/rwkv.cu
+# run nvcc -c -o rwkv.o rwkv.cu
+os.system(f'nvcc -c {cenv}/rwkv-cpp-cuda/include/rwkv/cuda/rwkv.cu --lib -o {cenv}/rwkv-cpp-cuda/include/rwkv/cuda/librwkv.a')
+
+# add rwkv
+env.Append(LIBS=['rwkv.a'])
+
+#add path to rwkv-cpp-cuda/include/rwkv/cuda/rwkv.a
+env.Append(LIBPATH=[cenv+'/rwkv-cpp-cuda/include/rwkv/cuda/'])
+
+# static link cudart
+env.Append(LIBS=['cudart_static'])
+
+# add cuda cudart_static -L/usr/local/cuda/lib64
+env.Append(LIBPATH=['/usr/local/cuda/lib64/'])
 
 
-# add python library
-env.Append(LIBS=['python3.10', "pthread"])
-env.Append(LIBPATH=['/lib/x86_64-linux-gnu'])
+
+
 # -Wl,-znodelete
 env_rwkv.Append(LINKFLAGS=['-Wl,-znodelete'])
 
 # use c++ 17
-env_rwkv.Append(CPPFLAGS=['-std=c++17'])
+# env.Append(CPPFLAGS=['-std=c++17'])
 
 # env_thirdparty.add_source_files(env.modules_sources, source)
 

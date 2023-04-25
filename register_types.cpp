@@ -32,13 +32,13 @@
 #include "core/io/resource_loader.h"
 #include "editor/editor_node.h"
 // #include "loader_tflite.h"
-#include "rwkv.h"
+#include "godot-rwkv.h"
 
 void initialize_rwkv_module(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
-	ClassDB::register_class<RWKV>();
+	ClassDB::register_class<GodotRWKV>();
 }
 
 void uninitialize_rwkv_module(ModuleInitializationLevel p_level) {
