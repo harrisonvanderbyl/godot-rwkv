@@ -1,0 +1,3 @@
+[submodule "rwkv-cpp-cuda"]
+	path = rwkv-cpp-cuda
+	url = https://github.com/harrisonvanderbyl/rwkv-cpp-cuda.git
