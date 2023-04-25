@@ -16,7 +16,7 @@ public:
 	RWKV model = RWKV();
 	GPT2Tokenizer* tokenizer;
 	int lastToken = 187;
-
+	std::vector<std::tuple<std::vector<double>,std::vector<double>,std::vector<double>,std::vector<double>,std::vector<double>>> states = {};
 	
 	GodotRWKV() {
 		
@@ -36,29 +36,67 @@ public:
 	};
 
 	void loadContext(String context) {
-		
+		std::vector<int> tokens = tokenizer->encode(std::string(context.utf8().get_data()));
+		for (int i = 0; i < tokens.size(); i++) {
+			model.forward(tokens[i]);
+		}
+		lastToken = tokens[tokens.size()-1];		
 	};
 
-	String forward(int number) {
+	String forward(int number, float temperature = 0.9, float tau = 0.8) {
 		std::string output = "";
 		for (int i = 0; i < number; i++) {
 			model.forward(lastToken);
-			lastToken = typical(model.out, 1.0, 0.9);
+			lastToken = typical(model.out, temperature, tau);
 			output += tokenizer->decode({lastToken});
 		}
 		return String(output.c_str());
 	};
 
 	void resetState() {
-		
+		for(int i = 0; i < model.num_embed*model.num_layers; i++) {
+			model.stateaa[i] = 0;
+			model.statebb[i] = 0;
+			model.statedd[i] = 0;
+			model.statexy[i] = 0;
+			model.statepp[i] = -1e30;
+		}
 	};
 
 	int getState() {
-		
+		std::vector<double> statea = {};
+		std::vector<double> stateb = {};
+		std::vector<double> stated = {};
+		std::vector<double> statex = {};
+		std::vector<double> statep = {};
+
+		for(int i = 0; i < model.num_embed*model.num_layers; i++) {
+			statea.push_back(model.stateaa[i]);
+			stateb.push_back(model.statebb[i]);
+			stated.push_back(model.statedd[i]);
+			statex.push_back(model.statexy[i]);
+			statep.push_back(model.statepp[i]);
+		}
+
+		states.push_back(std::make_tuple(statea,stateb,stated,statex,statep));
+
+		return states.size()-1;
 	};
 
 	void setState(int state) {
-		
+		std::vector<double> statea = std::get<0>(states[state]);
+		std::vector<double> stateb = std::get<1>(states[state]);
+		std::vector<double> stated = std::get<2>(states[state]);
+		std::vector<double> statex = std::get<3>(states[state]);
+		std::vector<double> statep = std::get<4>(states[state]);
+
+		for(int i = 0; i < model.num_embed*model.num_layers; i++) {
+			model.stateaa[i] = statea[i];
+			model.statebb[i] = stateb[i];
+			model.statedd[i] = stated[i];
+			model.statexy[i] = statex[i];
+			model.statepp[i] = statep[i];
+		}		
 	};
 
 	protected:
