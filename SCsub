@@ -33,8 +33,13 @@ env.Append(LIBPATH=[cenv+'/rwkv-cpp-cuda/include/rwkv/cuda/'])
 env.Append(LIBS=['cudart_static'])
 
 # add cuda cudart_static -L/usr/local/cuda/lib64
-env.Append(LIBPATH=['/usr/local/cuda/lib64/'])
-
+# if linux, link cuda
+if env['PLATFORM'] == 'linux':
+    env.Append(LIBPATH=['/usr/local/cuda/lib64/'])
+else:
+    # find and link cuda on windows
+    cuda_path = os.popen('where cuda').read().split('\n')[0]
+    env.Append(LIBPATH=[cuda_path+'/lib/x64/'])
 
 
 
