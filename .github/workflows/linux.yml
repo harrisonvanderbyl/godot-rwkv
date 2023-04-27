@@ -54,6 +54,11 @@ jobs:
         with:
           path: modules/rwkv
 
+      - uses: actions/checkout@v2
+        with:
+          repository: harrisonvanderbyl/rwkv-cpp-cuda
+          path: modules/rwkv/rwkv-cpp-cuda
+
       - uses: Jimver/cuda-toolkit@v0.2.10
         id: cuda-toolkit
         with:
