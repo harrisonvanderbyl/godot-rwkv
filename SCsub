@@ -46,6 +46,9 @@ env.Append(LIBPATH=['/usr/local/cuda/lib64/'])
 # -Wl,-znodelete
 env_rwkv.Append(LINKFLAGS=['-Wl,-znodelete'])
 
+# link to solve undefined reference to `shm_unlink'
+env.Append(LINKFLAGS=['-lrt'])
+
 # use c++ 17
 # env.Append(CPPFLAGS=['-std=c++17'])
 
