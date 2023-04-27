@@ -17,7 +17,7 @@ env_rwkv.Prepend(
 # env_rwkv.Append(CPPDEFINES={'-DCMAKE_PREFIX_PATH': cenv+'/libtorch'})
 
 # add ./rwkv/include
-env_rwkv.Append(CPPPATH=['./rwkv-cpp-cuda/include'])
+env_rwkv.Append(CPPPATH=[f'{cenv}/rwkv-cpp-cuda/include'])
 
 # add nvcc to compile ./rwkv-cpp-cuda/include/cuda/rwkv.cu
 # run nvcc -c -o rwkv.o rwkv.cu
@@ -34,12 +34,12 @@ env.Append(LIBS=['cudart_static'])
 
 # add cuda cudart_static -L/usr/local/cuda/lib64
 # if linux, link cuda
-if env['PLATFORM'] == 'linux':
-    env.Append(LIBPATH=['/usr/local/cuda/lib64/'])
-else:
-    # find and link cuda on windows
-    cuda_path = os.popen('where cuda').read().split('\n')[0]
-    env.Append(LIBPATH=[cuda_path+'/lib/x64/'])
+# if env['PLATFORM'] == 'linux':
+env.Append(LIBPATH=['/usr/local/cuda/lib64/'])
+# else:
+#     # find and link cuda on windows
+#     cuda_path = os.popen('where cuda').read().split('\n')[0]
+#     env.Append(LIBPATH=[cuda_path+'/lib/x64/'])
 
 
 
