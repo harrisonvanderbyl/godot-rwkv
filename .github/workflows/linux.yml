@@ -13,34 +13,8 @@ env:
 jobs:
   linux-editor:
     runs-on: "ubuntu-20.04"
-    name: ${{matrix.name}}
+    name: Ubuntu
 
-    strategy:
-      matrix:
-        include:
-          - name: Editor debug build
-            float: 32
-            target: editor
-            dev_build: yes
-            #dev_mode: yes # Flags specified manually. We want extra checks but we don't want to compile tests
-            production: no
-            executable_name: godot.linuxbsd.editor.dev.x86_64
-
-          - name: Editor build
-            float: 32
-            target: editor
-            dev_build: no
-            #dev_mode: no
-            production: yes
-            executable_name: godot.linuxbsd.editor.x86_64
-
-          - name: Editor build with 64-bit floats
-            float: 64
-            target: editor
-            dev_build: no
-            #dev_mode: no
-            production: yes
-            executable_name: godot.linuxbsd.editor.double.x86_64
 
     steps:
       # Clone Godot
@@ -134,11 +108,10 @@ jobs:
           SCONS_CACHE: ${{github.workspace}}/.scons_cache/
         run: |
           PATH=${GITHUB_WORKSPACE}/x86_64-godot-linux-gnu_sdk-buildroot/bin:$PATH
-          scons -j2 platform=linuxbsd tests=no dev_build=${{matrix.dev_build}} dev_mode=yes target=${{matrix.target}} production=${{matrix.production}} float=${{matrix.float}}
+          scons -j2 platform=linuxbsd
 
       # Make build available
       - uses: actions/upload-artifact@v2
-        if: ${{ matrix.dev_build != 'yes' }}
         with:
-          name: ${{matrix.executable_name}}
-          path: bin/${{matrix.executable_name}}
+          name: build
+          path: bin/
