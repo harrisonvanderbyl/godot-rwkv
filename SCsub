@@ -8,11 +8,24 @@ env_rwkv = env_modules.Clone()
 # get cwd
 cenv = os.getcwd()
 
-env_rwkv.Prepend(
-    LIBPATH=["/lib/x86_64-linux-gnu"])
+libend = ".windows.editor.x86_64.lib"
+prefix = ""
+if(env["PLATFORM"] != "win32"):
+
+    env_rwkv.Prepend(
+        LIBPATH=["/lib/x86_64-linux-gnu"])
+    env.Append(LIBPATH=['/usr/local/cuda/lib64/'])
+    env.Append(LINKFLAGS=['-lrt'])
+    # static link cudart
+    
+    libend=".a"
+    prefix = "lib"
+else:
+    os.system(f'copy "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v11.7\\lib\\x64\\cudart_static.lib" "{cenv}\\rwkv-cpp-cuda\\include\\rwkv\\cuda\\cudart_static.windows.editor.x86_64.lib"')
+
+env.Append(LIBS=['cudart_static'])
 # env.Prepend(RPATH=[libfolder,
 #                    ])
-
 # env_rwkv.Append(CPPDEFINES={'-D_GLIBCXX_USE_CXX11_ABI': 0})
 # env_rwkv.Append(CPPDEFINES={'-DCMAKE_PREFIX_PATH': cenv+'/libtorch'})
 
@@ -21,21 +34,20 @@ env_rwkv.Append(CPPPATH=[f'{cenv}/rwkv-cpp-cuda/include'])
 
 # add nvcc to compile ./rwkv-cpp-cuda/include/cuda/rwkv.cu
 # run nvcc -c -o rwkv.o rwkv.cu
-os.system(f'nvcc -c {cenv}/rwkv-cpp-cuda/include/rwkv/cuda/rwkv.cu --lib -o {cenv}/rwkv-cpp-cuda/include/rwkv/cuda/librwkv.a')
+os.system(f'nvcc -c {cenv}/rwkv-cpp-cuda/include/rwkv/cuda/rwkv.cu --lib -o {cenv}/rwkv-cpp-cuda/include/rwkv/cuda/{prefix}rwkvgodot{libend}')
 
 # add rwkv
-env.Append(LIBS=['rwkv.a'])
+env.Append(LIBS=[f'rwkvgodot'])
 
 #add path to rwkv-cpp-cuda/include/rwkv/cuda/rwkv.a
 env.Append(LIBPATH=[cenv+'/rwkv-cpp-cuda/include/rwkv/cuda/'])
 
-# static link cudart
-env.Append(LIBS=['cudart_static'])
+
 
 # add cuda cudart_static -L/usr/local/cuda/lib64
 # if linux, link cuda
 # if env['PLATFORM'] == 'linux':
-env.Append(LIBPATH=['/usr/local/cuda/lib64/'])
+
 # else:
 #     # find and link cuda on windows
 #     cuda_path = os.popen('where cuda').read().split('\n')[0]
@@ -47,7 +59,7 @@ env.Append(LIBPATH=['/usr/local/cuda/lib64/'])
 env_rwkv.Append(LINKFLAGS=['-Wl,-znodelete'])
 
 # link to solve undefined reference to `shm_unlink'
-env.Append(LINKFLAGS=['-lrt'])
+
 
 # use c++ 17
 # env.Append(CPPFLAGS=['-std=c++17'])
