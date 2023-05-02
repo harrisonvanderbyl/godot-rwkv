@@ -36,7 +36,7 @@ public:
 	};
 
 	void loadContext(String context) {
-		std::vector<long int> tokens = tokenizer->encode(std::string(context.utf8().get_data()));
+		std::vector<long long int> tokens = tokenizer->encode(std::string(context.utf8().get_data()));
 		for (int i = 0; i < tokens.size(); i++) {
 			model.forward(tokens[i]);
 		}
