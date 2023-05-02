@@ -16,23 +16,7 @@ jobs:
   windows-editor:
     # Windows 10 with latest image
     runs-on: "windows-latest"
-    name: ${{matrix.name}}
-
-    strategy:
-      matrix:
-        include:
-          - name: Editor build
-            target: editor
-            #cache_action: actions/cache@v2
-            executable_name: godot.windows.editor.x86_64.exe
-
-          - name: Release build
-            target: template_release
-            # I don't remember why this one used a different action in the past?
-            # Either way, Github Actions does not support matrix variables in `uses` yet.
-            # See https://github.com/orgs/community/discussions/9049
-            #cache_action: RevoluPowered/cache@v2.1
-            executable_name: godot.windows.template_release.x86_64.exe
+    name: win32
 
     steps:
       # Clone Godot
@@ -93,10 +77,10 @@ jobs:
         env:
           SCONS_CACHE: /.scons_cache/
         run: |
-          scons -j2 platform=windows
+          scons
 
       # Make build available
       - uses: actions/upload-artifact@v2
         with:
-          name: ${{matrix.executable_name}}
-          path: bin/${{matrix.executable_name}}
+          name: build
+          path: bin/
