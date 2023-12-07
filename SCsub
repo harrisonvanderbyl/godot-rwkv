@@ -11,48 +11,45 @@ cenv = os.getcwd()
 
 if(env["PLATFORM"] != "win32"):
 
-
-
-    env_rwkv.Prepend(
-        LIBPATH=["/lib/x86_64-linux-gnu"])
+    # env_rwkv.Prepend(
+    #     LIBPATH=["/lib/x86_64-linux-gnu"])
    
-    # add ./rwkv/include
-    env_rwkv.Append(CPPPATH=[f'{cenv}/rwkv-cpp-cuda/include'])
-
-    os.system(f'nvcc -c {cenv}/rwkv-cpp-cuda/include/rwkv/cuda/rwkv.cu --lib -o {cenv}/rwkv-cpp-cuda/include/rwkv/cuda/librwkv.a')
-
-    env.Append(LIBS=['rwkv.a'])
-
-    env.Append(LIBPATH=[cenv+'/rwkv-cpp-cuda/include/rwkv/cuda/'])
-
-    # static link cudart
-    env.Append(LIBS=['cudart_static'])
-
-    env.Append(LIBPATH=['/usr/local/cuda/lib64/'])
-
-
-    env_rwkv.Append(LINKFLAGS=['-Wl,-znodelete'])
-
-    env.Append(LINKFLAGS=['-lrt'])
+    # env_rwkv.Append(LINKFLAGS=['-Wl,-znodelete'])
 
     env_rwkv.add_source_files(env.modules_sources, "*.cpp")
+    
+    # add -march=native
+    env_rwkv.Append(CCFLAGS=['-march=native'])
+    
+    # -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL
+    
+    env_rwkv.Append(CCFLAGS=['-fopenmp'])
+    env_rwkv.Append(CCFLAGS=['-funroll-loops'])
+    env_rwkv.Append(CCFLAGS=['-flto'])
+    env_rwkv.Append(CCFLAGS=['-fopenmp'])
+    env_rwkv.Append(CCFLAGS=['-D_GLIBCXX_PARALLEL'])
+    
+    # add -O3
+    env_rwkv.Append(CCFLAGS=['-O3'])
+    
+    # add link flags
+    env_rwkv.Append(LINKFLAGS=['-fopenmp'])
+    env_rwkv.Append(LINKFLAGS=['-funroll-loops'])
+    env_rwkv.Append(LINKFLAGS=['-flto'])
+    env_rwkv.Append(LINKFLAGS=['-fopenmp'])
+    env_rwkv.Append(LINKFLAGS=['-D_GLIBCXX_PARALLEL'])
+    
+    # add -fopenmp to link flags of env
+    env.Append(LINKFLAGS=['-fopenmp'])
+    
+    # add ./rwkv.hpp/include to include path
+    env_rwkv.Append(CPPPATH=["./rwkv.hpp/include"])
 
 else:
     libend = ".windows.editor.x86_64.lib"
-    prefix = ""
-    os.system(f'copy "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v11.7\\lib\\x64\\cudart_static.lib" "{cenv}\\rwkv-cpp-cuda\\include\\rwkv\\cuda\\cudart_static.windows.editor.x86_64.lib"')
 
-    env.Append(LIBS=['cudart_static'])
-
-    env_rwkv.Append(CPPPATH=[f'{cenv}/rwkv-cpp-cuda/include'])
-
-    os.system(f'nvcc -c {cenv}/rwkv-cpp-cuda/include/rwkv/cuda/rwkv.cu --lib -o {cenv}/rwkv-cpp-cuda/include/rwkv/cuda/{prefix}rwkvgodot{libend}')
-
-    # add rwkv
-    env.Append(LIBS=[f'rwkvgodot'])
-
-    #add path to rwkv-cpp-cuda/include/rwkv/cuda/rwkv.a
-    env.Append(LIBPATH=[cenv+'/rwkv-cpp-cuda/include/rwkv/cuda/'])
+ 
+ 
 
 
     env_rwkv.Append(LINKFLAGS=['-Wl,-znodelete'])

@@ -3,8 +3,105 @@
 
 #include "core/io/resource.h"
 #include "core/object/ref_counted.h"
-#include "rwkv.h"
+#include "rwkv.hpp"
+#include "tokenizer/tokenizer.hpp"
+#include "sampler/sample.hpp"
 
+
+class Agent : public Resource {
+	GDCLASS(Agent, Resource);
+
+	public:
+	std::map<std::string, Tensor<float>> state = {};
+	std::vector<std::string> stop_sequences = {};
+	ulong max_queued_tokens = 0;
+	float temperature = 0.9;
+	float tau = 0.7;
+	ulong last_token = 187;
+	RWKVTokenizer* tokenizer = nullptr;
+	std::vector<ulong> context = {};
+	std::string add_context_queue = "";
+	bool busy = false;
+	
+	Agent(RWKV* model, RWKVTokenizer* tokenizeri) {
+		state = model->new_state();
+		tokenizer = tokenizeri;
+	}
+
+	Agent() {
+	}
+
+	int add_context(String context) {
+		// assert that add_context_queue is empty
+		// assert that max_queued_tokens is 0
+		if (max_queued_tokens != 0 || add_context_queue != "" || busy) {
+			ERR_PRINT("add_context_queue is not empty or max_queued_tokens is not 0");
+			return -1;
+		}
+
+		add_context_queue = std::string(context.utf8().get_data());
+		busy = true;
+		return 0;
+	}
+
+	bool is_busy() {
+		return busy;
+	}
+
+	void generate(int tokens){
+		max_queued_tokens = tokens;	
+	}
+
+	void set_temperature(float temp) {
+		temperature = temp;
+	}
+
+	void set_tau(float t) {
+		tau = t;
+	}
+
+	void set_stop_sequences(Array sequences) {
+		for (int i = 0; i < sequences.size(); i++) {
+			stop_sequences.push_back(std::string(sequences[i].operator String().utf8().get_data()));
+		}
+	}
+
+	void set_last_token(int token) {
+		last_token = token;
+	}
+
+	// threadsafe return context
+	String get_context() {
+		if (context.size() == 0) {
+			return "";
+		}
+		return String(tokenizer->decode(context).c_str());
+	}
+
+	// get last token
+	int get_last_token() {
+		return last_token;
+	}
+
+	// get max queued tokens
+	int get_max_queued_tokens() {
+		return max_queued_tokens;
+	}
+
+	protected:
+	static void _bind_methods() {
+		ClassDB::bind_method(D_METHOD("add_context"), &Agent::add_context);
+		ClassDB::bind_method(D_METHOD("generate"), &Agent::generate);
+		ClassDB::bind_method(D_METHOD("set_temperature"), &Agent::set_temperature);
+		ClassDB::bind_method(D_METHOD("set_tau"), &Agent::set_tau);
+		ClassDB::bind_method(D_METHOD("set_stop_sequences"), &Agent::set_stop_sequences);
+		ClassDB::bind_method(D_METHOD("set_last_token"), &Agent::set_last_token);
+		ClassDB::bind_method(D_METHOD("get_context"), &Agent::get_context);
+		ClassDB::bind_method(D_METHOD("get_last_token"), &Agent::get_last_token);
+		ClassDB::bind_method(D_METHOD("get_max_queued_tokens"), &Agent::get_max_queued_tokens);
+	}
+
+};
 
 class GodotRWKV : public Resource {
 	GDCLASS(GodotRWKV, Resource);
@@ -13,101 +110,125 @@ class GodotRWKV : public Resource {
 
 
 public:
-	RWKV model = RWKV();
-	GPT2Tokenizer* tokenizer;
-	int lastToken = 187;
-	std::vector<std::tuple<std::vector<double>,std::vector<double>,std::vector<double>,std::vector<double>,std::vector<double>>> states = {};
-	
+	RWKV* model = nullptr;
+	RWKVTokenizer* tokenizer = nullptr;
+	u_int64_t lastToken = 187;
+	int max_agents = 50;
+	std::vector<Agent*> agents = {};
 	GodotRWKV() {
 		
 	}
 
-	void loadModel(String path) {
-		model.loadFile(std::string(path.utf8().get_data()));
+	void loadModel(String path, int max_batch = 50) {
+		max_agents = max_batch;
+		// model.loadFile(std::string(path.utf8().get_data()));
+		model = new RWKV(std::string(path.utf8().get_data()), max_batch, 2);
 	};
 
 	void loadTokenizer(String path) {
-		std::optional<GPT2Tokenizer> tokenizerloader = GPT2Tokenizer::load(std::string((path+"vocab.json").utf8().get_data()),std::string((path+"merges.txt").utf8().get_data()));
-		if (tokenizerloader.has_value()) {
-			tokenizer = new GPT2Tokenizer(tokenizerloader.value());
-		}else{
-			std::cout << "Error loading tokenizer" << std::endl;
+		// model.loadFile(std::string(path.utf8().get_data()));
+		tokenizer = new RWKVTokenizer(std::string(path.utf8().get_data()));
+	};
+
+	
+	void listen() {
+		
+			// sleep
+			// do context processing
+			if (agents.size() > 0) {
+				std::vector<Agent*> toProcess = {};
+				for (int i = 0; i < agents.size(); i++) {
+					if (agents[i]->add_context_queue != "") {
+						std::cout << "processing context" << std::endl;
+						auto tokens = tokenizer->encode(agents[i]->add_context_queue);
+						std::cout << "tokens: " << tokens.size() << std::endl;
+						model->set_state(agents[i]->state, 0);
+						std::cout << "state set" << std::endl;
+
+						auto maxBatchSeqSize = max_agents;
+
+						// process tokens in batches of maxBatchSeqSize
+						for (int oi = 0; oi < tokens.size(); oi += maxBatchSeqSize) {
+							auto tokensBatch = std::vector<long unsigned int>();
+							for (int j = oi; j < MIN(oi + maxBatchSeqSize, tokens.size()); j++) {
+								tokensBatch.push_back(tokens[j]);
+							}
+							std::cout << "tokensBatch: " << oi << std::endl;
+							auto outputs = (*model)({tokensBatch});
+							if (oi + maxBatchSeqSize >= tokens.size()) {
+								agents[i]->last_token = typical(outputs[0][tokens.size()-1].data, agents[i]->temperature, agents[i]->tau);
+								agents[i]->context.push_back(agents[i]->last_token);
+							}
+						}
+						std::cout << "context processed" << std::endl;
+
+						agents[i]->add_context_queue = "";
+						std::cout << "context processed" << std::endl;
+						agents[i]->busy = false;
+						std::cout << "context processed busy" << std::endl;
+
+						// std::cout << "context processed" << std::endl;
+						model->get_state(agents[i]->state, 0);
+						std::cout << "agent state retrieved" << std::endl;
+					}
+
+					if (agents[i]->max_queued_tokens > 0) {
+						toProcess.push_back(agents[i]);
+						agents[i]->busy = true;
+					}
+				}
+
+				std::vector<std::vector<long unsigned int>> tokens = {};
+
+				for (int i = 0; i < toProcess.size(); i++) {
+					tokens.push_back({toProcess[i]->last_token});
+					model->set_state(toProcess[i]->state, i);
+				}
+
+				if (tokens.size() == 0) {
+					return;
+				}
+
+				std::cout << "tokens: " << tokens.size() << std::endl;
+
+				auto outputs = (*model)(tokens);
+				// outputs.reshape({outputs.shape[0], ulong(pow(2, 16))});
+				std::cout << "outputs: " << outputs.shape[0] << ":" << outputs.shape[1] << ":" << outputs.shape[2] << std::endl;
+
+				for (int i = 0; i < toProcess.size(); i++) {
+					auto out = outputs[i];
+					auto token = typical(out.data, toProcess[i]->temperature, toProcess[i]->tau);
+					toProcess[i]->last_token = token;
+					toProcess[i]->max_queued_tokens -= 1;
+					model->get_state(toProcess[i]->state, i);
+					toProcess[i]->context.push_back(token);
+					if (toProcess[i]->max_queued_tokens == 0) {
+						toProcess[i]->busy = false;
+					}
+
+					std::cout << "token: " << i << " processed" << std::endl;
+				}
+			}
+		
+	};
+
+	Variant createAgent() {
+		if (agents.size() < max_agents) {
+			Agent *agent = new Agent(model, tokenizer);
+			agents.push_back(agent);
+			return Variant(agent);
 		}
-	};
 
-	void loadContext(String context) {
-		std::vector<long long int> tokens = tokenizer->encode(std::string(context.utf8().get_data()));
-		for (int i = 0; i < tokens.size(); i++) {
-			model.forward(tokens[i]);
-		}
-		lastToken = tokens[tokens.size()-1];		
-	};
-
-	String forward(int number, float temperature = 0.9, float tau = 0.8) {
-		std::string output = "";
-		for (int i = 0; i < number; i++) {
-			model.forward(lastToken);
-			lastToken = typical(model.out, temperature, tau);
-			output += tokenizer->decode({lastToken});
-		}
-		return String(output.c_str());
-	};
-
-	void resetState() {
-		for(int i = 0; i < model.num_embed*model.num_layers; i++) {
-			model.stateaa[i] = 0;
-			model.statebb[i] = 0;
-			model.statedd[i] = 0;
-			model.statexy[i] = 0;
-			model.statepp[i] = -1e30;
-		}
-	};
-
-	int getState() {
-		std::vector<double> statea = {};
-		std::vector<double> stateb = {};
-		std::vector<double> stated = {};
-		std::vector<double> statex = {};
-		std::vector<double> statep = {};
-
-		for(int i = 0; i < model.num_embed*model.num_layers; i++) {
-			statea.push_back(model.stateaa[i]);
-			stateb.push_back(model.statebb[i]);
-			stated.push_back(model.statedd[i]);
-			statex.push_back(model.statexy[i]);
-			statep.push_back(model.statepp[i]);
-		}
-
-		states.push_back(std::make_tuple(statea,stateb,stated,statex,statep));
-
-		return states.size()-1;
-	};
-
-	void setState(int state) {
-		std::vector<double> statea = std::get<0>(states[state]);
-		std::vector<double> stateb = std::get<1>(states[state]);
-		std::vector<double> stated = std::get<2>(states[state]);
-		std::vector<double> statex = std::get<3>(states[state]);
-		std::vector<double> statep = std::get<4>(states[state]);
-
-		for(int i = 0; i < model.num_embed*model.num_layers; i++) {
-			model.stateaa[i] = statea[i];
-			model.statebb[i] = stateb[i];
-			model.statedd[i] = stated[i];
-			model.statexy[i] = statex[i];
-			model.statepp[i] = statep[i];
-		}		
-	};
-
+		// error_print("max_agents reached");
+	;
+	}
+	
 	protected:
 	static void _bind_methods() {
-		ClassDB::bind_method(D_METHOD("loadContext"), &GodotRWKV::loadContext);
-		ClassDB::bind_method(D_METHOD("forward"), &GodotRWKV::forward);	
+		ClassDB::bind_method(D_METHOD("listen"), &GodotRWKV::listen);	
 		ClassDB::bind_method(D_METHOD("loadModel"), &GodotRWKV::loadModel);
-		ClassDB::bind_method(D_METHOD("resetState"), &GodotRWKV::resetState);
-		ClassDB::bind_method(D_METHOD("getState"), &GodotRWKV::getState);
-		ClassDB::bind_method(D_METHOD("setState"), &GodotRWKV::setState);
 		ClassDB::bind_method(D_METHOD("loadTokenizer"), &GodotRWKV::loadTokenizer);
+		ClassDB::bind_method(D_METHOD("createAgent"), &GodotRWKV::createAgent);
 	}
 };
 

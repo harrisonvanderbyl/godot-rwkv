@@ -39,6 +39,7 @@ void initialize_rwkv_module(ModuleInitializationLevel p_level) {
 		return;
 	}
 	ClassDB::register_class<GodotRWKV>();
+	ClassDB::register_class<Agent>();
 }
 
 void uninitialize_rwkv_module(ModuleInitializationLevel p_level) {

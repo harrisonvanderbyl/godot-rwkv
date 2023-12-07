@@ -1,0 +1,33 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/include"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "linux-clang-x64",
+            // -march=native  -O3 -std=c++17 -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL
+            "compilerArgs": [
+                // avx512 and bf16 (assuming current CPU supports it)
+                "-march=native",
+                // avx512 but no bf16
+                // "-march=skylake-avx512",
+                // avx2 (no accumulation?)
+                // "-march=haswell",
+                "-O3",
+                "-std=c++17",
+                "-fopenmp",
+                "-flto",
+                "-fopenmp",
+                "-funroll-loops",
+                "-D_GLIBCXX_PARALLEL"
+            ]
+        }
+    ],
+    "version": 4
+}

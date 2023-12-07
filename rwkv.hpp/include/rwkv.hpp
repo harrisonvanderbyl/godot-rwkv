@@ -1,0 +1,132 @@
+#include <iostream>
+#include <string>
+#include <fstream>
+#include "safetensors/safetensors.hpp"
+#include "modules/embedding.hpp"
+#include "modules/layernorm.hpp"
+#include "modules/linear.hpp"
+#include "modules/block.hpp"
+
+class RWKV
+{
+    Embedding emb1;
+    LayerNorm ln0;
+    LayerNorm ln_out;
+    Linear output;
+    std::vector<Block> blocks;
+
+public:
+    ulong layers;
+    ulong max_batch_seq = 0;
+
+    RWKV(std::string path, ulong max_batch = 1, ulong max_seq = 50)
+    {
+        max_batch_seq = max_batch * max_seq;
+        std::ifstream inFile;
+        inFile.open(path, std::ios::binary);
+        auto model = safetensors::deserialize(inFile);
+        
+        for (auto key : model.keys())
+        {
+            std::cout << key << std::endl;
+        }
+
+
+        auto keys = model.keys();
+        layers = 0;
+        for (auto key : keys)
+        {
+            if (std::string(key).find("blocks.") != std::string::npos)
+            {
+                if (std::string(key).find("att.time_mix_k") != std::string::npos)
+                {
+                    layers++;
+                }
+               
+            }
+        }
+
+        // std::cout << "layers:" << layers << std::endl;
+
+        auto t1 = model["emb.weight"];
+        this->emb1 = Embedding(t1, max_batch, max_seq);
+        this->ln0 = LayerNorm(model["blocks.0.ln0.weight"], model["blocks.0.ln0.bias"], max_batch, max_seq);
+        this->ln_out = LayerNorm(model["ln_out.weight"], model["ln_out.bias"], max_batch, max_seq);
+        this->output = Linear(model, "head", max_batch, max_seq);
+        for (size_t i = 0; i < layers; i++)
+        {
+            blocks.push_back(Block(model, i, max_batch, max_seq));
+        }
+    }
+
+    Tensor<float> operator()(std::vector<std::vector<ulong>> input)
+    {
+        auto x = emb1(input);
+        x = ln0(x);
+        for (size_t i = 0; i < layers; i++)
+        {
+            x = blocks[i](x);
+        }
+        x = ln_out(x);
+        auto t3 = output(x);
+        return t3;
+    }
+
+    void get_state(std::map<std::string, Tensor<float>> state, size_t batchid = 0){
+       
+        
+        for (size_t i = 0; i < layers; i++)
+        {
+            auto wkv = blocks[i].att.state[batchid];
+            auto ts1 = blocks[i].att.timeshift.state[batchid];
+            auto ts2 = blocks[i].ffn.timeshift.state[batchid];
+            // std::cout << "wkv:" << wkv.shape[0] << " : " << wkv.shape[1] << std::endl;
+            // std::cout << "ts1:" << ts1.shape[0] << " : " << ts1.shape[1] << std::endl;
+            // std::cout << "ts2:" << ts2.shape[0] << " : " << ts2.shape[1] << std::endl;
+
+            state["blocks." + std::to_string(i) + ".att.state"].clone(wkv);
+            state["blocks." + std::to_string(i) + ".att.timeshift.state"].clone(ts1);
+            state["blocks." + std::to_string(i) + ".ffn.timeshift.state"].clone(ts2);
+            
+        }
+    }
+
+    void set_state(std::map<std::string, Tensor<float>> state, size_t batchid = 0){
+        for (size_t i = 0; i < layers; i++)
+        {
+            auto wkv = state["blocks." + std::to_string(i) + ".att.state"];
+            auto ts1 = state["blocks." + std::to_string(i) + ".att.timeshift.state"];
+            auto ts2 = state["blocks." + std::to_string(i) + ".ffn.timeshift.state"];
+
+            // std::cout << "wkv:" << wkv.shape[0] << " : " << wkv.shape[1] << std::endl;
+            // std::cout << "ts1:" << ts1.shape[0] << " : " << ts1.shape[1] << std::endl;
+            // std::cout << "ts2:" << ts2.shape[0] << " : " << ts2.shape[1] << std::endl;
+            blocks[i].att.state[batchid].clone(wkv);
+            blocks[i].att.timeshift.state[batchid].clone(ts1);
+            blocks[i].ffn.timeshift.state[batchid].clone(ts2);
+            
+        }
+    }
+
+    std::map<std::string, Tensor<float>> new_state(){
+        std::map<std::string, Tensor<float>> state;
+        for (size_t i = 0; i < layers; i++)
+        {
+            auto wkv = blocks[i].att.state[0];
+            auto ts1 = blocks[i].att.timeshift.state[0];
+            auto ts2 = blocks[i].ffn.timeshift.state[0];
+            // std::cout << "wkv:" << wkv.shape[0] << " : " << wkv.shape[1] << std::endl;
+            // std::cout << "ts1:" << ts1.shape[0] << " : " << ts1.shape[1] << std::endl;
+            // std::cout << "ts2:" << ts2.shape[0] << " : " << ts2.shape[1] << std::endl;
+
+            state["blocks." + std::to_string(i) + ".att.state"] = Tensor<float>(wkv.shape);
+            state["blocks." + std::to_string(i) + ".att.state"].fill(0);
+            state["blocks." + std::to_string(i) + ".att.timeshift.state"] = Tensor<float>(ts1.shape);
+            state["blocks." + std::to_string(i) + ".att.timeshift.state"].fill(0);
+            state["blocks." + std::to_string(i) + ".ffn.timeshift.state"] = Tensor<float>(ts2.shape);
+            state["blocks." + std::to_string(i) + ".ffn.timeshift.state"].fill(0);
+            
+        }
+        return state;
+    }
+};
