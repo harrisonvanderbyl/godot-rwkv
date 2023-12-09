@@ -18,17 +18,34 @@ int main(){
     // allocating ram for 50 tokens simultaneously
     // used for allocations of static memory usage
 
-    RWKV model(path, 1, 50);
+    RWKV model(path, 1, 16);
 
     std::cout << "Model loaded" << std::endl;
-    // cudaSetDevice(0);
-    // model.toVulkan();
+    
 
     auto logits = model({tokens});
 
     std::cout << logits << std::endl;
 
-    ulong tokenstogen = 100;
+    model.set_state(model.new_state());
+
+    logits = model({tokens});
+
+    std::cout << logits << std::endl;
+
+    model.set_state(model.new_state());
+
+    cudaSetDevice(0);
+    model.toVulkan();
+
+    std::cout << "Model sent to vulkan" << std::endl;
+
+    logits = model({tokens});
+
+    std::cout << logits << std::endl;
+
+
+    ulong tokenstogen = 5;
     std::vector<ulong> generated;
     for (int i = 0; i < tokenstogen; i++)
     {

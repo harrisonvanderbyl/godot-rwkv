@@ -368,7 +368,7 @@ public:
             auto stream_id = 0;
             const int CHUNKSIZE = 128;
             auto kernalparams = vuda::dim3(this->data_size_in_elements/CHUNKSIZE, 1, 1);
-            vuda::launchKernel("add.spv", "main", stream_id, kernalparams, this->data_size_in_elements, CHUNKSIZE, this->data, tensor.data, result.data);
+            vuda::launchKernel("./shaders/add.spv", "main", stream_id, kernalparams, this->data_size_in_elements, CHUNKSIZE, this->data, tensor.data, result.data);
             vuda::streamSynchronize(stream_id);
         }
     }
@@ -388,7 +388,7 @@ public:
             auto stream_id = 0;
             const int CHUNKSIZE = 128;
             auto kernalparams = vuda::dim3(this->data_size_in_elements/CHUNKSIZE, 1, 1);
-            vuda::launchKernel("multiply.spv", "main", stream_id, kernalparams, this->data_size_in_elements, CHUNKSIZE, this->data, tensor.data, result.data);
+            vuda::launchKernel("./shaders/multiply.spv", "main", stream_id, kernalparams, this->data_size_in_elements, CHUNKSIZE, this->data, tensor.data, result.data);
             vuda::streamSynchronize(stream_id);
         }
     }
@@ -406,7 +406,7 @@ public:
             auto stream_id = 0;
             const int CHUNKSIZE = 128;
             auto kernalparams = vuda::dim3(this->data_size_in_elements/CHUNKSIZE, 1, 1);
-            vuda::launchKernel("multiply1.spv", "main", stream_id, kernalparams, this->data_size_in_elements, CHUNKSIZE,input, this->data, result.data);
+            vuda::launchKernel("./shaders/multiply1.spv", "main", stream_id, kernalparams, this->data_size_in_elements, CHUNKSIZE,input, this->data, result.data);
             vuda::streamSynchronize(stream_id);
         }
     }
@@ -478,7 +478,7 @@ public:
         assert(OUT % BLOCKSIZE == 0);
 
         vuda::dim3 kernalparams = vuda::dim3(BBT, OUT/BLOCKSIZE, 1);
-        vuda::launchKernel("matmul.spv", "main", stream_id, kernalparams, BBT,IN,OUT, BLOCKSIZE, B, A, C);
+        vuda::launchKernel("./shaders/matmul.spv", "main", stream_id, kernalparams, BBT,IN,OUT, BLOCKSIZE, B, A, C);
         
         vuda::streamSynchronize(stream_id);
     }
@@ -522,7 +522,7 @@ public:
         assert(OUT % BLOCKSIZE == 0);
 
         vuda::dim3 kernalparams = vuda::dim3(BBT, OUT/BLOCKSIZE, 1);
-        vuda::launchKernel("matmul8.spv", "main", stream_id, kernalparams, BBT,IN,OUT, BLOCKSIZE, B, A, Ar, Ao, C);
+        vuda::launchKernel("./shaders/matmul8.spv", "main", stream_id, kernalparams, BBT,IN,OUT, BLOCKSIZE, B, A, Ar, Ao, C);
         
         vuda::streamSynchronize(stream_id);
     }
@@ -626,7 +626,6 @@ public:
 
 // Parallel computation
 #pragma omp parallel for collapse(2) schedule(dynamic, UINT8THREADALLOC) shared(A, Ar, Ao, B, C)
-
         for (long bbj = 0; bbj < BB * T; bbj += 1)
         {
             for (long i = 0; i < OUT; i += 8)
@@ -786,7 +785,7 @@ public:
 
             indiciesvulkan.sendToVulkan();
 
-            vuda::launchKernel("gather.spv", "main", stream_id, kernalparams, BATCH*T,OUT, BLOCKSIZE, A, indiciesvulkan.data, buffer.data);
+            vuda::launchKernel("./shaders/gather.spv", "main", stream_id, kernalparams, BATCH*T,OUT, BLOCKSIZE, A, indiciesvulkan.data, buffer.data);
             
             vuda::streamSynchronize(stream_id);
         }
@@ -864,7 +863,7 @@ public:
             assert(OUT % BLOCKSIZE == 0);
 
             vuda::dim3 kernalparams = vuda::dim3(BTT, 1, 1);
-            vuda::launchKernel("layernorm.spv", "main", stream_id, kernalparams, BTT,OUT, BLOCKSIZE, A, W, B, C);
+            vuda::launchKernel("./shaders/layernorm.spv", "main", stream_id, kernalparams, BTT,OUT, BLOCKSIZE, A, W, B, C);
             
             vuda::streamSynchronize(stream_id);
         }
@@ -899,7 +898,7 @@ public:
             const int entries = result.data_size_in_elements;
 
             vuda::dim3 kernalparams = vuda::dim3(entries/BLOCKSIZE, 1, 1);
-            vuda::launchKernel("lerp.spv", "main", stream_id, kernalparams, entries, BLOCKSIZE, IN, this->data, A, B, C);
+            vuda::launchKernel("./shaders/lerp.spv", "main", stream_id, kernalparams, entries, BLOCKSIZE, IN, this->data, B, A, C);
             
             vuda::streamSynchronize(stream_id);
         }
@@ -928,7 +927,7 @@ public:
             auto stream_id = 0;
             const int CHUNKSIZE = 128;
             auto kernalparams = vuda::dim3(this->data_size_in_elements/CHUNKSIZE, 1, 1);
-            vuda::launchKernel("relu.spv", "main", stream_id, kernalparams, this->data_size_in_elements, CHUNKSIZE, this->data, result.data);
+            vuda::launchKernel("./shaders/relu.spv", "main", stream_id, kernalparams, this->data_size_in_elements, CHUNKSIZE, this->data, result.data);
             vuda::streamSynchronize(stream_id);
         }
 
@@ -955,7 +954,7 @@ if (this->device.device_type.i == KHVMLCPU.i){
             auto stream_id = 0;
             const int CHUNKSIZE = 128;
             auto kernalparams = vuda::dim3(this->data_size_in_elements/CHUNKSIZE, 1, 1);
-            vuda::launchKernel("sigmoid.spv", "main", stream_id, kernalparams, this->data_size_in_elements, CHUNKSIZE, this->data, result.data);
+            vuda::launchKernel("./shaders/sigmoid.spv", "main", stream_id, kernalparams, this->data_size_in_elements, CHUNKSIZE, this->data, result.data);
             vuda::streamSynchronize(stream_id);
         }
         // Parallel computation
@@ -1053,7 +1052,7 @@ if (this->device.device_type.i == KHVMLCPU.i){
              const int stream_id = 0;
 
             vuda::dim3 kernalparams = vuda::dim3(B, H, 1);
-            vuda::launchKernel("wkv5.spv", "main", stream_id, kernalparams, B, T, C, H, rr, kk, vv, ww, uu, ss, out);
+            vuda::launchKernel("./shaders/wkv5.spv", "main", stream_id, kernalparams, B, T, C, H, rr, kk, vv, ww, uu, ss, out);
             
             vuda::streamSynchronize(stream_id);
         

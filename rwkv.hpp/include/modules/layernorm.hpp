@@ -99,7 +99,7 @@ class GroupNorm
                 // vuda
                 auto stream_id = 0;
                 auto kernalparams = vuda::dim3(Batch, Seq, Head);
-                vuda::launchKernel("layernorm.spv", "main", stream_id, kernalparams, Batch, Seq, Head*Out ,Head, B, A, D, C);
+                vuda::launchKernel("./shaders/layernorm.spv", "main", stream_id, kernalparams, Batch, Seq, Head*Out ,Head, B, A, D, C);
                 vuda::streamSynchronize(stream_id);
             }
            
