@@ -69,6 +69,10 @@
         "semaphore": "cpp",
         "list": "cpp",
         "set": "cpp",
-        "format": "cpp"
+        "format": "cpp",
+        "cinttypes": "cpp",
+        "condition_variable": "cpp",
+        "mutex": "cpp",
+        "shared_mutex": "cpp"
     }
 }

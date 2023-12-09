@@ -15,6 +15,10 @@ if(env["PLATFORM"] != "win32"):
     #     LIBPATH=["/lib/x86_64-linux-gnu"])
    
     # env_rwkv.Append(LINKFLAGS=['-Wl,-znodelete'])
+    
+    # set env variable VK_USE_PLATFORM_XLIB_KHR = false
+
+    
 
     env_rwkv.add_source_files(env.modules_sources, "*.cpp")
     
@@ -26,6 +30,7 @@ if(env["PLATFORM"] != "win32"):
     env_rwkv.Append(CCFLAGS=['-fopenmp'])
     env_rwkv.Append(CCFLAGS=['-funroll-loops'])
     env_rwkv.Append(CCFLAGS=['-flto'])
+    env_rwkv.Append(CCFLAGS=['-fexceptions'])
     env_rwkv.Append(CCFLAGS=['-fopenmp'])
     env_rwkv.Append(CCFLAGS=['-D_GLIBCXX_PARALLEL'])
     

@@ -44,38 +44,39 @@ class FFN
             FFNKey2 tensor([0., 0., 0., 0., 0.])
             FFNValue tensor([ 6.7170, -0.0981, -1.7468,  1.5263,  5.9379])
             */
-            auto cbuff = Tensor<float>(input.shape, this->buffer.data);
+            // auto cbuff = Tensor<float>(input.shape, this->buffer.data);
+            this->buffer.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
             // std::cout << "dims:" << input.shape[2] << std::endl;
             // std::cout << "FFNInput" << input[0][0] << std::endl;
             auto xx = this->timeshift(input);
-            this->time_mix_k.lerp(xx, input, cbuff);
+            this->time_mix_k.lerp(xx, input, this->buffer);
             // std::cout << "FFNInput2" << cbuff[0][0] << std::endl;
-            auto k = this->key(cbuff);
+            auto k = this->key(this->buffer);
             
 
            
-            this->time_mix_r.lerp(xx, input, cbuff);
+            this->time_mix_r.lerp(xx, input, this->buffer);
             // std::cout << "FFNInput3" << cbuff[0][0] << std::endl;
-            auto r = this->receptance(cbuff);
+            auto r = this->receptance(this->buffer);
             // std::cout << "FFNKey" << k[0][0] << std::endl;
             // std::cout << "kshape:" << k.shape[0] << ":" << k.shape[1] << ":" << k.shape[2] << std::endl;
             
-            k.relu(cbuff);
-            cbuff.multiply(cbuff);
+            k.relu(this->buffer);
+            this->buffer.multiply(this->buffer,this->buffer);
             // std::cout << "FFNKey2" << cbuff[0][0] << std::endl;
             // std::cout << "cbufshape:" << cbuff.shape[0] << ":" << cbuff.shape[1] << ":" << cbuff.shape[2] << std::endl;
-            auto v = this->value(cbuff); 
+            auto v = this->value(this->buffer); 
             // std::cout << "vshape:" << v.shape[0] << ":" << v.shape[1] << ":" << v.shape[2] << std::endl;
             /*
             FFNValue tensor([ 6.7170, -0.0981, -1.7468,  1.5263,  5.9379])
             */
             // std::cout << "FFNValue" << v[0][0] << std::endl;
          
-            r.sigmoid(cbuff);
+            r.sigmoid(this->buffer);
 
             // std::cout << "r.sigmoid" << cbuff[0][0] << std::endl;
 
-            v.multiply(cbuff, cbuff);
+            v.multiply(this->buffer, this->buffer);
 
             // std::cout << "v.multiply" << cbuff[0][0] << std::endl;
 
@@ -83,7 +84,7 @@ class FFN
 
             // }
             
-            return  cbuff;
+            return  this->buffer;
 
 
         }

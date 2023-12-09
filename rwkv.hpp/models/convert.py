@@ -3,7 +3,7 @@ import torch
 
 
 # change path to your model
-path = "./7B.pth"
+path = "./1B5.pth"
 model = torch.load(path, "cpu")
 
 from torch.utils.cpp_extension import load
@@ -45,8 +45,8 @@ for key in tqdm.tqdm(keys):
             if uint8:
                 weight = model[key].t().float().clone().cpu()
                 model[key] = (torch.zeros(weight.shape[1],weight.shape[0]).to(torch.uint8))
-                model[key+".range"] = (torch.zeros(weight.shape[1],16))
-                model[key+".zero"] = (torch.zeros(weight.shape[1],16))
+                model[key+".range"] = (torch.zeros(weight.shape[1]))
+                model[key+".zero"] = (torch.zeros(weight.shape[1]))
                 quant_cpp.quantize_cpu(weight.t().contiguous(), model[key+".range"] , model[key+".zero"],model[key], weight.shape[1], weight.shape[0])
                 # model[key] = model[key].t().contiguous().cpu()
             else:

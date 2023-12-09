@@ -1,11 +1,19 @@
 #ifndef RWKV_GODOT_H
 #define RWKV_GODOT_H
 
-#include "core/io/resource.h"
-#include "core/object/ref_counted.h"
-#include "rwkv.hpp"
+
+#undef VK_USE_PLATFORM_XLIB_KHR
 #include "tokenizer/tokenizer.hpp"
 #include "sampler/sample.hpp"
+#include "rwkv.hpp"
+
+
+
+
+#include "core/io/resource.h"
+#include "core/object/ref_counted.h"
+
+
 
 
 class Agent : public Resource {
@@ -231,5 +239,8 @@ public:
 		ClassDB::bind_method(D_METHOD("createAgent"), &GodotRWKV::createAgent);
 	}
 };
+
+// uninclude <vulkan/vulkan.hpp>
+
 
 #endif // RWKV_GODOT_H

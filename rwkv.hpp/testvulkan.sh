@@ -1,0 +1,1 @@
+g++ -m64 ./vulkantest.cpp -o ./vulkantest -I./include -g -march=native -std=c++17 -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL -lvulkan

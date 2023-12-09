@@ -59,46 +59,44 @@ class RWKV_5_ATT
             
         }
         Tensor<float> operator()(Tensor<float>& input){
-            auto crbuff = Tensor<float>({input.shape[0], input.shape[1], this->buffer.shape[2]}, this->buffer.data);
-
+            this->buffer.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
          
             auto xx = this->timeshift(input);
-            this->time_mix_k.lerp(xx, input, crbuff);
-            auto k = this->key(crbuff);
-            this->time_mix_v.lerp(xx, input, crbuff);
-            auto v = this->value(crbuff);
-            this->time_mix_r.lerp(xx, input, crbuff);
-            auto r = this->receptance(crbuff);
-            this->time_mix_g.lerp(xx, input, crbuff);
-            auto gv = this->gate(crbuff);
+            this->time_mix_k.lerp(xx, input, this->buffer);
+            auto k = this->key(this->buffer);
+            this->time_mix_v.lerp(xx, input, this->buffer);
+            auto v = this->value(this->buffer);
+            this->time_mix_r.lerp(xx, input, this->buffer);
+            auto r = this->receptance(this->buffer);
+            this->time_mix_g.lerp(xx, input, this->buffer);
+            auto gv = this->gate(this->buffer);
             
            
-       
-            crbuff.fill(0.0f);
-            this->state.wkv5(r,k,v,this->time_decay,this->time_faaaa, crbuff);
+    
+            this->state.wkv5(r,k,v,this->time_decay,this->time_faaaa, this->buffer);
             
             // std::cout << "WKVOUT:" << crbuff[0][0] << std::endl;
             
          
-            crbuff.multiply(1./8, crbuff);
+            this->buffer.multiply(1./8, this->buffer);
 
             // std::cout << "WKVOUT/8:" << crbuff[0][0] << std::endl;
             
 
             // std::cout << crbuff[0][0] << std::endl;
           
-            auto xxa = this->ln_x(crbuff);
+            auto xxa = this->ln_x(this->buffer);
             /*
             tensor([-0.0285, -0.0082, -0.0168,  0.0204,  0.0476])
             */
             // std::cout << "xxa:" << xxa[0][0] << std::endl;
-            gv.sigmoid(crbuff);
-            crbuff.multiply(gv, crbuff);
+            gv.sigmoid(this->buffer);
+            this->buffer.multiply(gv, this->buffer);
             
-            xxa.multiply(crbuff, crbuff);
+            xxa.multiply(this->buffer, this->buffer);
             
          
-            auto xout = this->output(crbuff);
+            auto xout = this->output(this->buffer);
 
             
             return xout;

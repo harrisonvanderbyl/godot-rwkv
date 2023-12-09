@@ -6,7 +6,8 @@ mkdir -p ./build/
 # g++ -march=skylake-avx512 ./rwkv.cpp -I ./include/ -o ./build/rwkv -g -O3 -std=c++17 -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL
 
 # bf16 support (assuming bf16 support is enabled on this machine)
-g++ ./rwkv.cpp -I ./include/ -o ./build/rwkv -g -march=native -O3 -std=c++17 -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL
+g++ -m64 ./rwkv.cpp -I ./include/ -o ./build/rwkv -g -march=native -O3 -std=c++17 -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL -lvulkan
+# g++ -m64 ./rwkv.cpp -I ./include/ -o ./build/rwkv -g -march=native -O3 -std=c++17 -lvulkan
 
 # no avx512 support
 # g++ ./rwkv.cpp -I ./include/ -o ./build/rwkv -g -march=haswell -O3 -std=c++17 -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL

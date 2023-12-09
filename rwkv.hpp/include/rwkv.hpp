@@ -26,10 +26,10 @@ public:
         inFile.open(path, std::ios::binary);
         auto model = safetensors::deserialize(inFile);
         
-        for (auto key : model.keys())
-        {
-            std::cout << key << std::endl;
-        }
+        // for (auto key : model.keys())
+        // {
+        //     std::cout << key << std::endl;
+        // }
 
 
         auto keys = model.keys();
@@ -67,9 +67,13 @@ public:
         {
             x = blocks[i](x);
         }
-        x = ln_out(x);
-        auto t3 = output(x);
-        return t3;
+        auto xm = ln_out(x);
+        auto t3 = output(xm);
+        output.buffer.unsafereshape({x.shape[0], x.shape[1], t3.shape[2]});
+        if(t3.device.device_type.i != KHVMLCPU.i){
+            t3.unloadVKBuffer(output.buffer);
+        }
+        return output.buffer;
     }
 
     void get_state(std::map<std::string, Tensor<float>> state, size_t batchid = 0){
@@ -128,5 +132,45 @@ public:
             
         }
         return state;
+    }
+
+    void toVulkan(){
+        emb1.toVulkan();
+        ln0.toVulkan();
+        ln_out.toVulkan();
+        output.toVulkan();
+
+        for (size_t i = 0; i < layers; i++)
+        {
+            blocks[i].ln1.toVulkan();
+            blocks[i].ln2.toVulkan();
+            blocks[i].att.gate.toVulkan();
+            blocks[i].att.key.toVulkan();
+            blocks[i].att.value.toVulkan();
+            blocks[i].att.receptance.toVulkan();
+            blocks[i].att.output.toVulkan();
+            blocks[i].att.ln_x.toVulkan();
+            blocks[i].att.time_decay.sendToVulkan();
+            blocks[i].att.time_faaaa.sendToVulkan();
+            blocks[i].att.time_mix_g.sendToVulkan();
+            blocks[i].att.time_mix_k.sendToVulkan();
+            blocks[i].att.time_mix_r.sendToVulkan();
+            blocks[i].att.time_mix_v.sendToVulkan();
+            blocks[i].att.timeshift.toVulkan();
+            blocks[i].att.state.sendToVulkan();
+            blocks[i].att.buffer.sendToVulkan();
+
+            blocks[i].ffn.key.toVulkan();
+            blocks[i].ffn.value.toVulkan();
+            blocks[i].ffn.receptance.toVulkan();
+            blocks[i].ffn.time_mix_k.sendToVulkan();
+            blocks[i].ffn.time_mix_r.sendToVulkan();
+            blocks[i].ffn.timeshift.toVulkan();
+            blocks[i].ffn.buffer.sendToVulkan();
+
+
+            
+        }
+        
     }
 };

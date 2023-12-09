@@ -4,7 +4,9 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/include"
+                "${workspaceFolder}/include",
+                // vulkan
+                "/usr/include/vulkan",
             ],
             "defines": [],
             "compilerPath": "/usr/bin/g++",
@@ -25,7 +27,9 @@
                 "-flto",
                 "-fopenmp",
                 "-funroll-loops",
-                "-D_GLIBCXX_PARALLEL"
+                "-D_GLIBCXX_PARALLEL",
+                // vulkan
+
             ]
         }
     ],

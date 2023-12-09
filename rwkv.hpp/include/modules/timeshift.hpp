@@ -31,23 +31,50 @@ class TimeShift
         }
 
         Tensor<float> operator()(Tensor<float> input){
-            auto out = Tensor<float>({input.shape[0], input.shape[1], input.shape[2]}, this->buffer.data);
+            this->buffer.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
             auto batches = input.shape[0];
             auto seq = input.shape[1];
-            for (size_t i = 0; i < batches; i++){
-                
-                
-                out[i][0].clone(this->state[i][0]);
-                for (size_t j = 0; j < seq; j++){
-                    if (j > 0){
-                        out[i][j].clone(input[i][j-1]);
-                    }
-                    else{
-                        this->state[i][0].clone(input[i][seq-1]);
+
+            if (this->buffer.device.device_type.i == KHVMLCPU.i){
+                for (size_t i = 0; i < batches; i++){
+                    this->buffer[i][0].clone(this->state[i][0]);
+                    for (size_t j = 0; j < seq; j++){
+                        if (j > 0){
+                            this->buffer[i][j].clone(input[i][j-1]);
+                        }
+                        else{
+                            this->state[i][0].clone(input[i][seq-1]);
+                        }
                     }
                 }
             }
-            return out;            
+            else{
+
+                auto B = input.data;
+                auto C = this->buffer.data;
+                auto A = this->state.data;
+
+                auto Batch = input.shape[0];
+                auto Seq = input.shape[1];
+                auto Out = input.shape[2];
+
+                // vuda
+                auto stream_id = 0;
+                const int CHUNKSIZE = 128;
+                auto kernalparams = vuda::dim3(Batch, 1, 1);
+                vuda::launchKernel("timeshift.spv", "main", stream_id, kernalparams, Batch, Seq, Out,1, A, B, C);
+                vuda::streamSynchronize(stream_id);
+                
+            }
+
+
+            return this->buffer;            
+        }
+
+
+        void toVulkan(){
+            this->state.sendToVulkan();
+            this->buffer.sendToVulkan();
         }
 
 };

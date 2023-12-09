@@ -30,14 +30,14 @@ public:
         std::vector<std::string> filelines;
         while (std::getline(file, line)) {
             // get progress without changing the file position
-            float progress = (float)file.tellg() / (float)std::filesystem::file_size(fileName);
-            if ((ulong)(progress * 100) > lastintprog) {
-                lastintprog = (ulong)(progress * 100);
-                // flush
-                std::cout.flush();
-                std::cout << "%\r" << "Loading token file:[" << std::string(lastintprog / 2, '=') << std::string(50 - lastintprog / 2, ' ') << "] " << lastintprog ;
+            // float progress = (float)file.tellg() / (float)std::filesystem::file_size(fileName);
+            // if ((ulong)(progress * 100) > lastintprog) {
+            //     lastintprog = (ulong)(progress * 100);
+            //     // flush
+            //     std::cout.flush();
+            //     std::cout << "%\r" << "Loading token file:[" << std::string(lastintprog / 2, '=') << std::string(50 - lastintprog / 2, ' ') << "] " << lastintprog ;
                 
-            }
+            // }
 
             filelines.push_back(std::move(line));
         }

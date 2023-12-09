@@ -10,7 +10,7 @@ int main(){
 
     RWKVTokenizer worldTokenizer("rwkv_vocab_v20230424.txt");
     
-    auto tokens = worldTokenizer.encode("### Instruction:\nWrite a harry potter fanfiction\n### Response:\n");
+    auto tokens = worldTokenizer.encode("### Instruction: Write a harry potter fanfiction\n### Response:");
     
     std::cout << worldTokenizer.decode(tokens) << std::endl;
     std::cout << "Loading model" << std::endl;
@@ -21,8 +21,12 @@ int main(){
     RWKV model(path, 1, 50);
 
     std::cout << "Model loaded" << std::endl;
+    // cudaSetDevice(0);
+    // model.toVulkan();
 
     auto logits = model({tokens});
+
+    std::cout << logits << std::endl;
 
     ulong tokenstogen = 100;
     std::vector<ulong> generated;

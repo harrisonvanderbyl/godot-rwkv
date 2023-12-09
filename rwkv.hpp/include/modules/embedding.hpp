@@ -15,13 +15,17 @@ class Embedding
             this->buffer = Tensor<float>({max_batch, max_seq, weight.shape[1]});
         }
         Tensor<float> operator()(std::vector<std::vector<ulong>> indices){
-            
-            auto mbuff = Tensor<float>({indices.size(), indices[0].size(), this->weight.shape[1]},
-                this->buffer.data);
-            
-            this->weight.gather(indices, mbuff);
 
-            return mbuff;
+            this->buffer.unsafereshape({indices.size(), indices[0].size(), this->weight.shape[1]});
+
+            this->weight.gather(indices, this->buffer);
+            
+            
+            return this->buffer;
         }
 
+        void toVulkan(){
+            this->weight.sendToVulkan();
+            this->buffer.sendToVulkan();
+        }
 };
