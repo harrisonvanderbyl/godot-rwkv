@@ -22,6 +22,8 @@
                 // "-march=skylake-avx512",
                 // avx2 (no accumulation?)
                 // "-march=haswell",
+                // arm
+                // "-march=aarch64",
                 "-O3",
                 "-std=c++17",
                 "-fopenmp",

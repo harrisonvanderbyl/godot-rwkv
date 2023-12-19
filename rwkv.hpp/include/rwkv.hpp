@@ -139,7 +139,9 @@ public:
         return state;
     }
 
-    void toVulkan(){
+    void toVulkan(int device = 0){
+        cudaSetDevice(device);
+
         emb1.toVulkan();
         ln0.toVulkan();
         ln_out.toVulkan();

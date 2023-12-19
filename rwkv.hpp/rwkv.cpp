@@ -6,11 +6,11 @@
 #include "tokenizer/tokenizer.hpp"
 int main(){
     std::cout << "Hello World" << std::endl;
-    std::string path = "./model.safetensors";
+    std::string path = "./3b.safetensors";
 
     RWKVTokenizer worldTokenizer("rwkv_vocab_v20230424.txt");
     
-    auto tokens = worldTokenizer.encode("### Instruction: Create a harry potter fanfiction. \n\n### Response:");
+    auto tokens = worldTokenizer.encode("### Instruction: please create a long harry potter fanfiction. \n\n### Response:");
     
     std::cout << worldTokenizer.decode(tokens) << std::endl;
     std::cout << "Loading model" << std::endl;
@@ -32,7 +32,6 @@ int main(){
     model.set_state(model.new_state());
 
 
-    // cudaSetDevice(0);
     // model.toVulkan();
 
     logits = model({tokens});
@@ -49,7 +48,7 @@ int main(){
 
     // std::cout << logits << std::endl;
 
-
+    auto start = std::chrono::high_resolution_clock::now();
     ulong tokenstogen = 100;
     std::vector<ulong> generated;
     for (int i = 0; i < tokenstogen; i++)
@@ -65,6 +64,12 @@ int main(){
         logits = model({{sample}});
         // std::cout << logits << std::endl;
     }
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::cout << std::endl;
+
+    std::cout << "Generated " << tokenstogen << " tokens in " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+    std::cout << "tokens per second: " << (tokenstogen / (std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0)) << std::endl;
 
     
     return 0;

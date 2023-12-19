@@ -62,19 +62,39 @@ std::atomic<ulong> jobs41 = 0;
 std::atomic<ulong> jobs42 = 0;
 std::atomic<ulong> jobs43 = 0;
 
-void dopartial(MatMulJob *job) {
+std::atomic<bool> jobs10done = false;
+std::atomic<bool> jobs11done = false;
+std::atomic<bool> jobs12done = false;
+std::atomic<bool> jobs13done = false;
+
+std::atomic<bool> jobs20done = false;
+std::atomic<bool> jobs21done = false;
+std::atomic<bool> jobs22done = false;
+std::atomic<bool> jobs23done = false;
+
+std::atomic<bool> jobs30done = false;
+std::atomic<bool> jobs31done = false;
+std::atomic<bool> jobs32done = false;
+std::atomic<bool> jobs33done = false;
+
+std::atomic<bool> jobs40done = false;
+std::atomic<bool> jobs41done = false;
+std::atomic<bool> jobs42done = false;
+std::atomic<bool> jobs43done = false;
+
+void dopartial(MatMulJob job) {
 	// do the work
-	auto A = job->A;
-	auto B = job->B;
-	auto C = job->C;
-	auto IN = job->IN;
-	auto OUT = job->OUT;
-	auto Ao = job->Ao;
-	auto Ar = job->Ar;
-	auto Bt = job->Bt;
-	auto Ct = job->Ct;
-	auto bbt = job->bbt;
-	auto ii = job->ii;
+	auto A = job.A;
+	auto B = job.B;
+	auto C = job.C;
+	auto IN = job.IN;
+	auto OUT = job.OUT;
+	auto Ao = job.Ao;
+	auto Ar = job.Ar;
+	auto Bt = job.Bt;
+	auto Ct = job.Ct;
+	auto bbt = job.bbt;
+	auto ii = job.ii;
 
 	const auto Ario = _mm512_load_ps(Ar + ii);
     const auto Aoioo = _mm512_div_ps( _mm512_load_ps(Ao + ii), Ario);
@@ -85,17 +105,14 @@ void dopartial(MatMulJob *job) {
 		__m512 aa = _mm512_setzero_ps();
 		const auto IAIN = A + i * IN;
 		for (uint32_t k = 0; k < IN; k += 32) {
+
+
+			const __m512 b01 = _mm512_load_ps(B + bbt * IN + k + 16);
+			const __m512 b00 = _mm512_load_ps(B + bbt * IN + k);
             
 			const __m512 a00 = Aoio + _mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(*((__m128i *)(IAIN + k))));
 			const __m512 a01 = Aoio + _mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(*((__m128i *)(IAIN + k + 16))));
-		
-			
-			const __m512 b01 = _mm512_load_ps(B + bbt * IN + k + 16);
-			const __m512 b00 = _mm512_load_ps(B + bbt * IN + k);
-
-            
-
-            
+		            
             // aa = _mm512_dpbf16_ps(aa, _mm512_cvtne2ps_pbh(a00, a01), _mm512_cvtne2ps_pbh(b00, b01)); 
             aa = _mm512_fmadd_ps(a00, b00, aa);
             aa = _mm512_fmadd_ps(a01, b01, aa);
@@ -108,20 +125,20 @@ void dopartial(MatMulJob *job) {
 			zz * Ario);
 }
 
-void dopartialwkv5att(MatMulJob *job) {
-	auto T = job->bbt;
-	auto B = job->ii;
-	auto CH = job->IN;
-	auto bb = job->OUT;
-	auto kk = job->Ao;
-    auto ww = job->C;
-	auto vv = job->Ar;
-	auto uu = job->Bt;
-	auto rr = job->Ct;
-	auto ss = job->ex;
-	auto out = job->B;
-    auto H = job->H;
-    auto hh = job->hh;
+void dopartialwkv5att(MatMulJob job) {
+	auto T = job.bbt;
+	auto B = job.ii;
+	auto CH = job.IN;
+	auto bb = job.OUT;
+	auto kk = job.Ao;
+    auto ww = job.C;
+	auto vv = job.Ar;
+	auto uu = job.Bt;
+	auto rr = job.Ct;
+	auto ss = job.ex;
+	auto out = job.B;
+    auto H = job.H;
+    auto hh = job.hh;
 
 	// 1d
 	uint bsize = H * T * CH;
@@ -182,23 +199,38 @@ void dopartialwkv5att(MatMulJob *job) {
 	}
 }
 
-void listen(std::atomic<ulong> *jobs1, std::atomic<ulong> *jobs2) {
+void listen(std::atomic<ulong> *jobs1,std::atomic<bool> *jobs1done, std::atomic<ulong> *jobs2, std::atomic<bool> *jobs2done){
 	// wait for all jobs to be done
 	while (true) {
 		// check if all jobs are done
 
 		// get last job
-		if (jobs1[0] != 0) {
-            if((*(MatMulJob **)jobs1)->type == JOBTYPE::RWKV_ATT){
-                dopartialwkv5att(*(MatMulJob **)jobs1);
+		const auto currenta = jobs1->load();
+		if (currenta != 0) {
+			const auto current = *(MatMulJob *)currenta;
+			
+            if(current.type == JOBTYPE::RWKV_ATT){
+                dopartialwkv5att(current);
+				jobs1->store(0UL);
             }else{
-			    dopartial(*(MatMulJob **)jobs1);
+			    dopartial(current);
+				jobs1->store(0UL);
+				if(current.ii + 16*16 >= (current.OUT)){
+					jobs1done[0] = true;
+				}
             }
-			jobs1[0] = 0;
+			
+			
 		}
-		if (jobs2[0] != 0) {
-			dopartial(*(MatMulJob **)jobs2);
-			jobs2[0] = 0;
+		const auto current2 = jobs2->load();
+		if (current2 != 0) {
+			const auto current = *(MatMulJob *)current2;
+			
+			dopartial(current);
+			jobs2->store(0);
+			if((current).ii + 16*16 >= (current).OUT){
+				jobs2done[0] = true;
+			}
 		}
 	}
 }
@@ -214,14 +246,14 @@ void startWorkers() {
 
 	std::cout << "Starting workers" << std::endl;
 
-	t1 = new std::thread(listen, &jobs10, &jobs11);
-	t2 = new std::thread(listen, &jobs12, &jobs13);
-	t3 = new std::thread(listen, &jobs20, &jobs21);
-	t4 = new std::thread(listen, &jobs22, &jobs23);
-	t5 = new std::thread(listen, &jobs30, &jobs31);
-	t6 = new std::thread(listen, &jobs32, &jobs33);
-	t7 = new std::thread(listen, &jobs40, &jobs41);
-	t8 = new std::thread(listen, &jobs42, &jobs43);
+	t1 = new std::thread(listen, &jobs10,&jobs10done, &jobs11,&jobs11done);
+	t2 = new std::thread(listen, &jobs12,&jobs12done, &jobs13,&jobs13done);
+	t3 = new std::thread(listen, &jobs20,&jobs20done, &jobs21,&jobs21done);
+	t4 = new std::thread(listen, &jobs22,&jobs22done, &jobs23,&jobs23done);
+	t5 = new std::thread(listen, &jobs30,&jobs30done, &jobs31,&jobs31done);
+	t6 = new std::thread(listen, &jobs32,&jobs32done, &jobs33,&jobs33done);
+	t7 = new std::thread(listen, &jobs40,&jobs40done, &jobs41,&jobs41done);
+	t8 = new std::thread(listen, &jobs42,&jobs42done, &jobs43,&jobs43done);
 	std::cout << "Started workers" << std::endl;
 }
 
@@ -241,175 +273,225 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 	const ulong OUT = Ct.shape[2];
 
 	startWorkers();
-
+	
 	for (uint32_t bbt = 0; bbt < BB * T; bbt += 1) {
-		for (uint32_t ii = 0; ii < OUT; ii += (16 * 16)) {
-			auto job1 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii, IN, OUT };
-			jobs10 = (uint64_t)&job1;
-			auto job2 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 16, IN, OUT };
-			jobs11 = (uint64_t)&job2;
-			auto job3 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 32, IN, OUT };
-			jobs12 = (uint64_t)&job3;
-			auto job4 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 48, IN, OUT };
-			jobs13 = (uint64_t)&job4;
+		uint32_t outlayer[16] = {
+			0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0
+		};
+		jobs10done = false;
+		jobs11done = false;
+		jobs12done = false;
+		jobs13done = false;
 
-			auto job5 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 64, IN, OUT };
-			jobs20 = (uint64_t)&job5;
-			auto job6 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 80, IN, OUT };
-			jobs21 = (uint64_t)&job6;
-			auto job7 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 96, IN, OUT };
-			jobs22 = (uint64_t)&job7;
-			auto job8 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 112, IN, OUT };
-			jobs23 = (uint64_t)&job8;
+		jobs20done = false;
+		jobs21done = false;
+		jobs22done = false;
+		jobs23done = false;
 
-			auto job9 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 128, IN, OUT };
+		jobs30done = false;
+		jobs31done = false;
+		jobs32done = false;
+		jobs33done = false;
 
-			jobs30 = (uint64_t)&job9;
-			auto job10 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 144, IN, OUT };
-			jobs31 = (uint64_t)&job10;
-			auto job11 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 160, IN, OUT };
-			jobs32 = (uint64_t)&job11;
-			auto job12 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 176, IN, OUT };
-			jobs33 = (uint64_t)&job12;
-
-			auto job13 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 192, IN, OUT };
-			jobs40 = (uint64_t)&job13;
-			auto job14 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 208, IN, OUT };
-			jobs41 = (uint64_t)&job14;
-			auto job15 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 224, IN, OUT };
-			jobs42 = (uint64_t)&job15;
-			auto job16 = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, ii + 240, IN, OUT };
-			jobs43 = (uint64_t)&job16;
-
-			// wait for all jobs to be done
-			while (
-					jobs10 != 0 || jobs11 != 0 || jobs12 != 0 || jobs13 != 0 ||
-					jobs20 != 0 || jobs21 != 0 || jobs22 != 0 || jobs23 != 0 ||
-					jobs30 != 0 || jobs31 != 0 || jobs32 != 0 || jobs33 != 0 ||
-					jobs40 != 0 || jobs41 != 0 || jobs42 != 0 || jobs43 != 0) {
-				// if so, sleep for 5ms
-				// std::this_thread::sleep_for(std::chrono::microseconds(1));
-				// continue;
+		jobs40done = false;
+		jobs41done = false;
+		jobs42done = false;
+		jobs43done = false;
+		// std::cout << "outlayer" << std::endl;
+		// std::cout << outlayer[0] << std::endl;
+		// std::cout << outlayer[1] << std::endl;
+		// std::cout << outlayer[2] << std::endl;
+		// std::cout << outlayer[3] << std::endl;
+		
+		// for (uint32_t ii = 0; ii < OUT; ii += (16 * 16)) {
+		while ((outlayer[0] <= OUT) || (outlayer[1] <= OUT) || (outlayer[2] <= OUT) || (outlayer[3] <= OUT) ||
+				(outlayer[4] <= OUT) || (outlayer[5] <= OUT) || (outlayer[6] <= OUT) || (outlayer[7] <= OUT) ||
+				(outlayer[8] <= OUT) || (outlayer[9] <= OUT) || (outlayer[10] <= OUT) || (outlayer[11] <= OUT) ||
+				(outlayer[12] <= OUT) || (outlayer[13] <= OUT) || (outlayer[14] <= OUT) || (outlayer[15] <= OUT)
+				) {
+			
+			if(outlayer[0] < OUT){
+				auto cmp = 0UL;
+				if (jobs10.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[0], IN, OUT })){
+					outlayer[0] += 16*16;
+				}
+			}else{
+				if (jobs10done){
+					outlayer[0] += 16*16;
+				}
 			}
-		}
-		// float outo = _mm512_reduce_add_epi32(c);
-	}
-}
 
-void matmul(
-		Tensor<uint8_t, HVMLCPU> &AThis, Tensor<float, HVMLCPU> &Art, Tensor<float, HVMLCPU> &Aot, Tensor<float, HVMLCPU> &ABt, Tensor<float, HVMLCPU> &ACt,
-		Tensor<uint8_t, HVMLCPU> &BThis, Tensor<float, HVMLCPU> &Brt, Tensor<float, HVMLCPU> &Bot, Tensor<float, HVMLCPU> &BBt, Tensor<float, HVMLCPU> &BCt,
-		Tensor<uint8_t, HVMLCPU> &CThis, Tensor<float, HVMLCPU> &Crt, Tensor<float, HVMLCPU> &Cot, Tensor<float, HVMLCPU> &CBt, Tensor<float, HVMLCPU> &CCt,
-		Tensor<uint8_t, HVMLCPU> &DThis, Tensor<float, HVMLCPU> &Drt, Tensor<float, HVMLCPU> &Dot, Tensor<float, HVMLCPU> &DBt, Tensor<float, HVMLCPU> &DCt) {
-	// Pointers to the data
-	const auto AT = AThis.data;
-	const auto Ar = Art.data;
-	const auto Ao = Aot.data;
-	const auto AB = ABt.data;
-	const auto AC = ACt.data;
-
-	const auto BT = BThis.data;
-	const auto Br = Brt.data;
-	const auto Bo = Bot.data;
-	const auto BB = BBt.data;
-	const auto BC = BCt.data;
-
-	const auto CT = CThis.data;
-	const auto Cr = Crt.data;
-	const auto Co = Cot.data;
-	const auto CB = CBt.data;
-	const auto CC = CCt.data;
-
-	const auto DT = DThis.data;
-	const auto Dr = Drt.data;
-	const auto Do = Dot.data;
-	const auto DB = DBt.data;
-	const auto DC = DCt.data;
-
-	const ulong BATCH = ABt.shape[0];
-	const ulong TIME = ABt.shape[1];
-	const ulong IN = ABt.shape[2];
-	const ulong OUT = ACt.shape[2];
-
-	startWorkers();
-
-	// #pragma omp parallel for collapse(2)
-	for (uint32_t BatchTime = 0; BatchTime < BATCH * TIME; BatchTime += 1) {
-		for (uint32_t ii = 0; ii < OUT; ii += 16 * 4) {
-			auto job1 = MatMulJob{ AT, AB, AC, Ao, Ar, ABt.data, ACt.data, BatchTime, ii, IN, OUT };
-			jobs10 = (uint64_t)&job1;
-			auto job2 = MatMulJob{ AT, AB, AC, Ao, Ar, ABt.data, ACt.data, BatchTime, ii + 16, IN, OUT };
-			jobs11 = (uint64_t)&job2;
-			auto job3 = MatMulJob{ AT, AB, AC, Ao, Ar, ABt.data, ACt.data, BatchTime, ii + 32, IN, OUT };
-			jobs12 = (uint64_t)&job3;
-			auto job4 = MatMulJob{ AT, AB, AC, Ao, Ar, ABt.data, ACt.data, BatchTime, ii + 48, IN, OUT };
-			jobs13 = (uint64_t)&job4;
-
-			auto job5 = MatMulJob{ BT, BB, BC, Bo, Br, BBt.data, BCt.data, BatchTime, ii, IN, OUT };
-			jobs20 = (uint64_t)&job5;
-			auto job6 = MatMulJob{ BT, BB, BC, Bo, Br, BBt.data, BCt.data, BatchTime, ii + 16, IN, OUT };
-			jobs21 = (uint64_t)&job6;
-			auto job7 = MatMulJob{ BT, BB, BC, Bo, Br, BBt.data, BCt.data, BatchTime, ii + 32, IN, OUT };
-			jobs22 = (uint64_t)&job7;
-			auto job8 = MatMulJob{ BT, BB, BC, Bo, Br, BBt.data, BCt.data, BatchTime, ii + 48, IN, OUT };
-			jobs23 = (uint64_t)&job8;
-
-			auto job9 = MatMulJob{ CT, CB, CC, Co, Cr, CBt.data, CCt.data, BatchTime, ii, IN, OUT };
-			jobs30 = (uint64_t)&job9;
-			auto job10 = MatMulJob{ CT, CB, CC, Co, Cr, CBt.data, CCt.data, BatchTime, ii + 16, IN, OUT };
-			jobs31 = (uint64_t)&job10;
-			auto job11 = MatMulJob{ CT, CB, CC, Co, Cr, CBt.data, CCt.data, BatchTime, ii + 32, IN, OUT };
-			jobs32 = (uint64_t)&job11;
-			auto job12 = MatMulJob{ CT, CB, CC, Co, Cr, CBt.data, CCt.data, BatchTime, ii + 48, IN, OUT };
-			jobs33 = (uint64_t)&job12;
-
-			auto job13 = MatMulJob{ DT, DB, DC, Do, Dr, DBt.data, DCt.data, BatchTime, ii, IN, OUT };
-			jobs40 = (uint64_t)&job13;
-			auto job14 = MatMulJob{ DT, DB, DC, Do, Dr, DBt.data, DCt.data, BatchTime, ii + 16, IN, OUT };
-			jobs41 = (uint64_t)&job14;
-			auto job15 = MatMulJob{ DT, DB, DC, Do, Dr, DBt.data, DCt.data, BatchTime, ii + 32, IN, OUT };
-			jobs42 = (uint64_t)&job15;
-			auto job16 = MatMulJob{ DT, DB, DC, Do, Dr, DBt.data, DCt.data, BatchTime, ii + 48, IN, OUT };
-			jobs43 = (uint64_t)&job16;
-
-			// wait for all jobs to be done
-			while (
-					jobs10 != 0 || jobs11 != 0 || jobs12 != 0 || jobs13 != 0 ||
-					jobs20 != 0 || jobs21 != 0 || jobs22 != 0 || jobs23 != 0 ||
-					jobs30 != 0 || jobs31 != 0 || jobs32 != 0 || jobs33 != 0 ||
-					jobs40 != 0 || jobs41 != 0 || jobs42 != 0 || jobs43 != 0) {
-				// if so, sleep for 5ms
-				// std::this_thread::sleep_for(std::chrono::microseconds(1));
-				// continue;
+			if(outlayer[1] < OUT){
+				auto cmp = 0UL;
+				if (jobs11.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[1]+16, IN, OUT })){
+					outlayer[1] += 16*16;
+				}
+			}else{
+				if (jobs11done){
+					outlayer[1] += 16*16;
+				}
 			}
-		}
-		// float outo = _mm512_reduce_add_epi32(c);
-	}
-}
-// t
 
-void matmul(
-		Tensor<uint8_t, HVMLDYNAMIC> &AThis, Tensor<float, HVMLDYNAMIC> &Art, Tensor<float, HVMLDYNAMIC> &Aot, Tensor<float, HVMLDYNAMIC> &ABt, Tensor<float, HVMLDYNAMIC> &ACt,
-		Tensor<uint8_t, HVMLDYNAMIC> &BThis, Tensor<float, HVMLDYNAMIC> &Brt, Tensor<float, HVMLDYNAMIC> &Bot, Tensor<float, HVMLDYNAMIC> &BBt, Tensor<float, HVMLDYNAMIC> &BCt,
-		Tensor<uint8_t, HVMLDYNAMIC> &CThis, Tensor<float, HVMLDYNAMIC> &Crt, Tensor<float, HVMLDYNAMIC> &Cot, Tensor<float, HVMLDYNAMIC> &CBt, Tensor<float, HVMLDYNAMIC> &CCt,
-		Tensor<uint8_t, HVMLDYNAMIC> &DThis, Tensor<float, HVMLDYNAMIC> &Drt, Tensor<float, HVMLDYNAMIC> &Dot, Tensor<float, HVMLDYNAMIC> &DBt, Tensor<float, HVMLDYNAMIC> &DCt) {
-	// verify adding all devices = 0
-	auto dcount = AThis.device.device_type.i + BThis.device.device_type.i + CThis.device.device_type.i + DThis.device.device_type.i +
-			Art.device.device_type.i + Brt.device.device_type.i + Crt.device.device_type.i + Drt.device.device_type.i +
-			Aot.device.device_type.i + Bot.device.device_type.i + Cot.device.device_type.i + Dot.device.device_type.i +
-			ABt.device.device_type.i + BBt.device.device_type.i + CBt.device.device_type.i + DBt.device.device_type.i +
-			ACt.device.device_type.i + BCt.device.device_type.i + CCt.device.device_type.i + DCt.device.device_type.i;
-	if (dcount != 0) {
-		std::cout << "ERROR: All tensors must be on the same device" << std::endl;
-		exit(1);
-	}
-	if (AThis.device.device_type.i == KHVMLCPU.i) {
-		matmul(*(Tensor<uint8_t, HVMLCPU> *)&AThis, *(Tensor<float, HVMLCPU> *)&Art, *(Tensor<float, HVMLCPU> *)&Aot, *(Tensor<float, HVMLCPU> *)&ABt, *(Tensor<float, HVMLCPU> *)&ACt,
-				*(Tensor<uint8_t, HVMLCPU> *)&BThis, *(Tensor<float, HVMLCPU> *)&Brt, *(Tensor<float, HVMLCPU> *)&Bot, *(Tensor<float, HVMLCPU> *)&BBt, *(Tensor<float, HVMLCPU> *)&BCt,
-				*(Tensor<uint8_t, HVMLCPU> *)&CThis, *(Tensor<float, HVMLCPU> *)&Crt, *(Tensor<float, HVMLCPU> *)&Cot, *(Tensor<float, HVMLCPU> *)&CBt, *(Tensor<float, HVMLCPU> *)&CCt,
-				*(Tensor<uint8_t, HVMLCPU> *)&DThis, *(Tensor<float, HVMLCPU> *)&Drt, *(Tensor<float, HVMLCPU> *)&Dot, *(Tensor<float, HVMLCPU> *)&DBt, *(Tensor<float, HVMLCPU> *)&DCt);
+			if(outlayer[2] < OUT){
+				auto cmp = 0UL;
+				if (jobs12.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[2]+32, IN, OUT })){
+					outlayer[2] += 16*16;
+				}
+			}else{
+				if (jobs12done){
+					outlayer[2] += 16*16;
+				}
+			}
+
+			if(outlayer[3] < OUT){
+				auto cmp = 0UL;
+				if (jobs13.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[3]+48, IN, OUT })){
+					outlayer[3] += 16*16;
+				}
+			}else{
+				if (jobs13done){
+					outlayer[3] += 16*16;
+				}
+			}
+
+			if(outlayer[4] < OUT){
+				auto cmp = 0UL;
+				if (jobs20.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[4]+64, IN, OUT })){
+					outlayer[4] += 16*16;
+				}
+			}else{
+				if (jobs20done){
+					outlayer[4] += 16*16;
+				}
+			}
+
+			if(outlayer[5] < OUT){
+				auto cmp = 0UL;
+				if (jobs21.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[5]+80, IN, OUT })){
+					outlayer[5] += 16*16;
+				}
+			}else{
+				if (jobs21done){
+					outlayer[5] += 16*16;
+				}
+			}
+
+			if(outlayer[6] < OUT){
+				auto cmp = 0UL;
+				if (jobs22.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[6]+96, IN, OUT })){
+					outlayer[6] += 16*16;
+				}
+			}else{
+				if (jobs22done){
+					outlayer[6] += 16*16;
+				}
+			}
+
+			if(outlayer[7] < OUT){
+				auto cmp = 0UL;
+				if (jobs23.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[7]+112, IN, OUT })){
+					outlayer[7] += 16*16;
+				}
+			}else{
+				if (jobs23done){
+					outlayer[7] += 16*16;
+				}
+			}
+
+			if(outlayer[8] < OUT){
+				auto cmp = 0UL;
+				if (jobs30.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[8]+128, IN, OUT })){
+					outlayer[8] += 16*16;
+				}
+			}else{
+				if (jobs30done){
+					outlayer[8] += 16*16;
+				}
+			}
+
+			if(outlayer[9] < OUT){
+				auto cmp = 0UL;
+				if (jobs31.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[9]+144, IN, OUT })){
+					outlayer[9] += 16*16;
+				}
+			}else{
+				if (jobs31done){
+					outlayer[9] += 16*16;
+				}
+			}
+
+			if(outlayer[10] < OUT){
+				auto cmp = 0UL;
+				if (jobs32.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[10]+160, IN, OUT })){
+					outlayer[10] += 16*16;
+				}
+			}else{
+				if (jobs32done){
+					outlayer[10] += 16*16;
+				}
+			}
+
+			if(outlayer[11] < OUT){
+				auto cmp = 0UL;
+				if (jobs33.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[11]+176, IN, OUT })){
+					outlayer[11] += 16*16;
+				}
+			}else{
+				if (jobs33done){
+					outlayer[11] += 16*16;
+				}
+			}
+
+			if(outlayer[12] < OUT){
+				auto cmp = 0UL;
+				if (jobs40.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[12]+192, IN, OUT })){
+					outlayer[12] += 16*16;
+				}
+			}else{
+				if (jobs40done){
+					outlayer[12] += 16*16;
+				}
+			}
+
+			if(outlayer[13] < OUT){
+				auto cmp = 0UL;
+				if (jobs41.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[13]+208, IN, OUT })){
+					outlayer[13] += 16*16;
+				}
+			}else{
+				if (jobs41done){
+					outlayer[13] += 16*16;
+				}
+			}
+
+			if(outlayer[14] < OUT){
+				auto cmp = 0UL;
+				if (jobs42.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[14]+224, IN, OUT })){
+					outlayer[14] += 16*16;
+				}
+			}else{
+				if (jobs42done){
+					outlayer[14] += 16*16;
+				}
+			}
+
+			if(outlayer[15] < OUT){
+				auto cmp = 0UL;
+				if (jobs43.compare_exchange_strong(cmp,(ulong)new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[15]+240, IN, OUT })){
+					outlayer[15] += 16*16;
+				}
+			}else{
+				if (jobs43done){
+					outlayer[15] += 16*16;
+				}
+			}
+
+			
+		}
 	}
 }
+
 
 template <>
 void Tensor<float, HVMLCPU>::wkv5(Tensor<float, HVMLCPU> &r, Tensor<float, HVMLCPU> &k, Tensor<float, HVMLCPU> &v, Tensor<float, HVMLCPU> &w, Tensor<float, HVMLCPU> &u, Tensor<float, HVMLCPU> &y) {
@@ -431,21 +513,6 @@ void Tensor<float, HVMLCPU>::wkv5(Tensor<float, HVMLCPU> &r, Tensor<float, HVMLC
 		// heads are divisable by 8 I think
 		for (uint hh = 0; hh < H; hh+=8) {
 
-    // const u_char *A = nullptr;
-	// const float *B;
-	// const float *C;
-	// const float *Ao;
-	// const float *Ar;
-	// const float *Bt;
-	// const float *Ct;
-	// const ulong bbt;
-	// const ulong ii;
-	// const ulong IN;
-	// const ulong OUT;
-	// JOBTYPE type = MATMUL;
-    // const float* ex = nullptr;
-    // const ulong H = 0;
-    // const ulong hh = 0;
     auto job1 = MatMulJob{ 
                         nullptr,
                         out,

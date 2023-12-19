@@ -17,9 +17,9 @@ class RWKV_5_ATT
         Tensor<float> time_faaaa;
         Tensor<float> state;
         Tensor<float> buffer;
-        Tensor<float> buffer1;
-        Tensor<float> buffer2;
-        Tensor<float> buffer3;
+        // Tensor<float> buffer1;
+        // Tensor<float> buffer2;
+        // Tensor<float> buffer3;
         Linear receptance;
         Linear key;
         Linear value;
@@ -51,9 +51,9 @@ class RWKV_5_ATT
             this->time_decay = model[prefix + "time_decay"];
             this->time_faaaa = model[prefix + "time_faaaa"];
             this->buffer = Tensor<float>({max_batch, max_seq, dims},0.0);
-            this->buffer1 = Tensor<float>({max_batch, max_seq, dims},0.0);
-            this->buffer2 = Tensor<float>({max_batch, max_seq, dims},0.0);
-            this->buffer3 = Tensor<float>({max_batch, max_seq, dims},0.0);
+            // this->buffer1 = Tensor<float>({max_batch, max_seq, dims},0.0);
+            // this->buffer2 = Tensor<float>({max_batch, max_seq, dims},0.0);
+            // this->buffer3 = Tensor<float>({max_batch, max_seq, dims},0.0);
 
             this->timeshift = TimeShift(max_batch, max_seq, dims);
 
@@ -74,32 +74,32 @@ class RWKV_5_ATT
          
             auto xx = this->timeshift(input);
 
-            this->buffer1.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
-            this->buffer2.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
-            this->buffer3.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+            // this->buffer1.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+            // this->buffer2.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+            // this->buffer3.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
             this->buffer.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
 
            
             this->time_mix_k.lerp(xx, input, this->buffer);
-            auto k = this->key.buffer;
-            this->time_mix_v.lerp(xx, input, this->buffer1);
-            auto v = this->value.buffer;
-            this->time_mix_r.lerp(xx, input, this->buffer2);
-            auto r = this->receptance.buffer;
-            this->time_mix_g.lerp(xx, input, this->buffer3);
-            auto gv = this->gate.buffer;  
+            auto k = this->key(this->buffer);
+            this->time_mix_v.lerp(xx, input, this->buffer);
+            auto v = this->value(this->buffer);
+            this->time_mix_r.lerp(xx, input, this->buffer);
+            auto r = this->receptance(this->buffer);
+            this->time_mix_g.lerp(xx, input, this->buffer);
+            auto gv = this->gate(this->buffer);
 
-            k.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
-            v.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
-            r.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
-            gv.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+            // k.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+            // v.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+            // r.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+            // gv.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
 
-            matmul(
-                this->key.weight,this->key.range,this->key.offset,this->buffer,k,
-                this->value.weight,this->value.range,this->value.offset,this->buffer1,v,
-                this->receptance.weight,this->receptance.range,this->receptance.offset,this->buffer2,r,
-                this->gate.weight,this->gate.range,this->gate.offset,this->buffer3,gv
-            );
+            // matmul(
+            //     this->key.weight,this->key.range,this->key.offset,this->buffer,k,
+            //     this->value.weight,this->value.range,this->value.offset,this->buffer1,v,
+            //     this->receptance.weight,this->receptance.range,this->receptance.offset,this->buffer2,r,
+            //     this->gate.weight,this->gate.range,this->gate.offset,this->buffer3,gv
+            // );
 
 
     
