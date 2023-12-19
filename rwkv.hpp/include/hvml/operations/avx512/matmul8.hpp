@@ -298,13 +298,7 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 		jobs41done = false;
 		jobs42done = false;
 		jobs43done = false;
-		// std::cout << "outlayer" << std::endl;
-		// std::cout << outlayer[0] << std::endl;
-		// std::cout << outlayer[1] << std::endl;
-		// std::cout << outlayer[2] << std::endl;
-		// std::cout << outlayer[3] << std::endl;
 		
-		// for (uint32_t ii = 0; ii < OUT; ii += (16 * 16)) {
 		while ((outlayer[0] <= OUT) || (outlayer[1] <= OUT) || (outlayer[2] <= OUT) || (outlayer[3] <= OUT) ||
 				(outlayer[4] <= OUT) || (outlayer[5] <= OUT) || (outlayer[6] <= OUT) || (outlayer[7] <= OUT) ||
 				(outlayer[8] <= OUT) || (outlayer[9] <= OUT) || (outlayer[10] <= OUT) || (outlayer[11] <= OUT) ||

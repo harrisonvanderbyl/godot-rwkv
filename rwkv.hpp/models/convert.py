@@ -3,7 +3,7 @@ import torch
 
 
 # change path to your model
-path = "./7B.pth"
+path = "./rwkv-15.pth"
 model = torch.load(path, "cpu")
 
 from torch.utils.cpp_extension import load

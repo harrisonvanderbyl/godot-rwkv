@@ -86,14 +86,9 @@ int main() {
 
   // std::cout << output << std::endl;
   // start timer 
-    start = std::chrono::high_resolution_clock::now(); 
-    for (int i = 0; i < 100; i++)
-    {
-        matmul(aai,aar, aao, input, outputa,aai,aar, aao, input, outputa2,aai,aar, aao, input, outputa3,aai,aar, aao, input, outputa4);
-
-    }
+   
     // stop timer
-    stop = std::chrono::high_resolution_clock::now();
+    // stop = std::chrono::high_resolution_clock::now();
 
     duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
     std::cout << "CPU-4: " << duration.count() << std::endl;
