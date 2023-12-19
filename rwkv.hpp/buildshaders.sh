@@ -11,5 +11,5 @@ mkdir -p ./build/shaders/
 # iterate through ./shaders and compile all shaders into ./build
 for shader in ./shaders/*.glsl
 do
-    glslc $shader -o ./build/shaders/${shader##*/}.spv
+    glslc --target-spv=spv1.6 $shader -o ./build/shaders/${shader##*/}.spv 
 done

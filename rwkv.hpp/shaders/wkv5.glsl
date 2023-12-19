@@ -29,20 +29,20 @@ layout(set = 0, binding = 3) readonly buffer w_buffer {
     float w[];
 };
 
-layout(set = 0, binding = 5) readonly buffer u_buffer {
+layout(set = 0, binding = 4) readonly buffer u_buffer {
     float u[];
 };
 
-layout(set = 0, binding = 6) buffer s_buffer {
+layout(set = 0, binding = 5) buffer s_buffer {
     float s[];
 };
 
-layout(set = 0, binding = 7) buffer o_buffer {
+layout(set = 0, binding = 6) buffer o_buffer {
     float o[];
 };
 
 void main() {
-     uint bsize = H * T * (C / H);
+    uint bsize = H * T * (C / H);
       
     // 1d tensor
     uint tsize = H * (C / H);
@@ -105,5 +105,4 @@ void main() {
                         }
                     }
                 }
-    
 }

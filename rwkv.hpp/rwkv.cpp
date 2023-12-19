@@ -10,7 +10,7 @@ int main(){
 
     RWKVTokenizer worldTokenizer("rwkv_vocab_v20230424.txt");
     
-    auto tokens = worldTokenizer.encode("### Instruction: Write a harry potter fanfiction\n### Response:");
+    auto tokens = worldTokenizer.encode("### Instruction: Create a harry potter fanfiction. \n\n### Response:");
     
     std::cout << worldTokenizer.decode(tokens) << std::endl;
     std::cout << "Loading model" << std::endl;
@@ -18,7 +18,9 @@ int main(){
     // allocating ram for 50 tokens simultaneously
     // used for allocations of static memory usage
 
-    RWKV model(path, 1, 16);
+    RWKV model(path, 32, 2);
+
+    
 
     std::cout << "Model loaded" << std::endl;
     
@@ -29,23 +31,26 @@ int main(){
 
     model.set_state(model.new_state());
 
-    logits = model({tokens});
 
-    std::cout << logits << std::endl;
-
-    model.set_state(model.new_state());
-
-    cudaSetDevice(0);
-    model.toVulkan();
-
-    std::cout << "Model sent to vulkan" << std::endl;
+    // cudaSetDevice(0);
+    // model.toVulkan();
 
     logits = model({tokens});
 
     std::cout << logits << std::endl;
 
+    // model.set_state(model.new_state());
 
-    ulong tokenstogen = 5;
+    
+
+    // std::cout << "Model sent to vulkan" << std::endl;
+
+    // logits = model({tokens});
+
+    // std::cout << logits << std::endl;
+
+
+    ulong tokenstogen = 100;
     std::vector<ulong> generated;
     for (int i = 0; i < tokenstogen; i++)
     {
@@ -58,6 +63,7 @@ int main(){
         std::cout << worldTokenizer.decode({sample});
 
         logits = model({{sample}});
+        // std::cout << logits << std::endl;
     }
 
     

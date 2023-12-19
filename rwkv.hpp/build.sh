@@ -6,7 +6,9 @@ mkdir -p ./build/
 # g++ -march=skylake-avx512 ./rwkv.cpp -I ./include/ -o ./build/rwkv -g -O3 -std=c++17 -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL
 
 # bf16 support (assuming bf16 support is enabled on this machine)
-g++ -m64 ./rwkv.cpp -I ./include/ -o ./build/rwkv -g -march=native -O3 -std=c++17 -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL -lvulkan
+# intel 
+source /opt/intel/oneapi/2024.0/oneapi-vars.sh 
+icpx -m64 ./rwkv.cpp -I ./include/ -o ./build/rwkv -march=native -std=c++17 -lvulkan -ffast-math -O3
 # g++ -m64 ./rwkv.cpp -I ./include/ -o ./build/rwkv -g -march=native -O3 -std=c++17 -lvulkan
 
 # no avx512 support

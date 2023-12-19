@@ -363,6 +363,7 @@ namespace vuda
 
             while(true)
             {
+                // std::cout << "Waiting" << std::endl;
                 kernelprogram<specialization<specialTypes...>::m_bytesize>* kernel = nullptr;
                 std::unordered_map<std::string, std::shared_ptr<kernel_interface>>::const_iterator it;
 
@@ -409,11 +410,11 @@ namespace vuda
                     // retrieve shader module
                     vk::ShaderModule shaderModule = CreateShaderModule(identifier, entry);                    
                     m_kernels.try_emplace(identifier_entry, std::make_unique<kernelprogram<specialization<specialTypes...>::m_bytesize>>(m_device, shaderModule, entry, bindings, specials));
-                    //assert(pair.second);
+                    assert(m_kernels.find(identifier_entry) != m_kernels.end());
 
-                    /*std::stringstream ostr;
-                    ostr << "creating kernel" << std::endl;
-                    std::cout << ostr.str();*/
+                    // std::stringstream ostr;
+                    // // ostr << "creating kernel" << std::endl;
+                    // std::cout << ostr.str();
 
                     m_kernel_creation_lock->store(false);
                 }

@@ -27,25 +27,20 @@ if(env["PLATFORM"] != "win32"):
     
     # -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL
     
-    env_rwkv.Append(CCFLAGS=['-fopenmp'])
-    env_rwkv.Append(CCFLAGS=['-funroll-loops'])
-    env_rwkv.Append(CCFLAGS=['-flto'])
+
     env_rwkv.Append(CCFLAGS=['-fexceptions'])
-    env_rwkv.Append(CCFLAGS=['-fopenmp'])
-    env_rwkv.Append(CCFLAGS=['-D_GLIBCXX_PARALLEL'])
+   
     
     # add -O3
     env_rwkv.Append(CCFLAGS=['-O3'])
     
-    # add link flags
-    env_rwkv.Append(LINKFLAGS=['-fopenmp'])
-    env_rwkv.Append(LINKFLAGS=['-funroll-loops'])
-    env_rwkv.Append(LINKFLAGS=['-flto'])
-    env_rwkv.Append(LINKFLAGS=['-fopenmp'])
-    env_rwkv.Append(LINKFLAGS=['-D_GLIBCXX_PARALLEL'])
+    # add fast math
+    env_rwkv.Append(CCFLAGS=['-ffast-math'])
     
-    # add -fopenmp to link flags of env
-    env.Append(LINKFLAGS=['-fopenmp'])
+    env_rwkv.Append(CCFLAGS=["-lomp", "-lgomp", "-fopenmp"])
+    env.Append(CCFLAGS=["-lomp", "-lgomp", "-fopenmp"])
+    env.Append(LINKFLAGS=["-lomp", "-lgomp", "-fopenmp"])
+    
     
     # add ./rwkv.hpp/include to include path
     env_rwkv.Append(CPPPATH=["./rwkv.hpp/include"])

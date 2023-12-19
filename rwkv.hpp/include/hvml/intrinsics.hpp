@@ -4,7 +4,7 @@
 #define INTRINSICS_HPP
 // get pow
 #include <cmath>
-#define UINT8THREADALLOC 128
+#define UINT8THREADALLOC 64
 
 #ifdef __AVX512F__ // This macro is defined if AVX-512 is supported
 #include <immintrin.h>
@@ -20,16 +20,7 @@
 #define MAX(x, y) _mm512_max_ps(x, y)
 #define SIMDTYPE __m512
 
-#define EXP(x) exp_ps_fill(x)
-SIMDTYPE exp_ps_fill(SIMDTYPE x)
-{
-    SIMDTYPE result = SET1(0.0f);
-    for (int i = 0; i < SIMD_WIDTH; i++)
-    {
-        result[i] = pow(M_E, x[i]);
-    }
-    return result;
-}
+#define EXP(x) _mm512_exp_ps(x)
 
 #define DIVIDE(x, y) _mm512_div_ps(x, y)
 

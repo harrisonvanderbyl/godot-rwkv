@@ -32,20 +32,20 @@ void main() {
     
     // this->buffer[i][0].clone(this->state[i][0]);
     for (uint i = 0; i < OUT; i++){
-        o[b*OUT+i] = state[b*OUT+i];
+        o[b*OUT*SEQ+0*OUT+i] = state[b*OUT+i];
     }
 
     for (uint j = 0; j < SEQ; j++){
         if (j > 0){
             // this->buffer[i][j].clone(input[i][j-1]);
             for (uint i = 0; i < OUT; i++){
-                o[b*OUT*SEQ+j*OUT+i] = inp[b*OUT*SEQ+i+(j-1)*OUT];
+                o[b*OUT*SEQ+j*OUT+i] = inp[b*OUT*SEQ+(j-1)*OUT+i];
             }
         }
         else{
             // this->state[i][0].clone(input[i][seq-1]);
             for (uint i = 0; i < OUT; i++){
-                state[b*OUT+i] = inp[b*OUT*SEQ+i+(SEQ-1)*OUT];
+                state[b*OUT+i] = inp[b*OUT*SEQ+(SEQ-1)*OUT+i];
             }
         }
     }

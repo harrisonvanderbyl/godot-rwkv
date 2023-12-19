@@ -6,6 +6,7 @@ class Embedding
         long max_batch;
         long max_seq;
         Tensor<float> buffer;
+        Tensor<float> vkbuffer;
         Embedding(){
         }
         Embedding(Tensor<float> weight, ulong max_batch, ulong max_seq){
@@ -20,12 +21,18 @@ class Embedding
 
             this->weight.gather(indices, this->buffer);
             
+            if(this->vkbuffer.device.device_type.i == KHVMLVULKAN.i){
+                this->vkbuffer.unsafereshape({indices.size(), indices[0].size(), this->weight.shape[1]});
+                this->vkbuffer.loadVKBuffer(this->buffer);
+                return this->vkbuffer;
+            }
             
             return this->buffer;
         }
 
         void toVulkan(){
-            this->weight.sendToVulkan();
-            this->buffer.sendToVulkan();
+            this->vkbuffer = Tensor<float>({this->buffer.shape[0], this->buffer.shape[1], this->buffer.shape[2]},0.0);
+            this->vkbuffer.sendToVulkan();
+
         }
 };

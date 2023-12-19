@@ -59,7 +59,7 @@ void main() {
 
     var /= OUT;
 
-    float std = sqrt(var + 1e-5);
+    float std = sqrt(var + 64e-5);
 
     for (uint outx = OFFSET; outx < OFFSET+OUT; outx++) {
         

@@ -9,7 +9,8 @@
                 "/usr/include/vulkan",
             ],
             "defines": [],
-            "compilerPath": "/usr/bin/g++",
+            // intel icpx
+            "compilerPath": "/opt/intel/oneapi/2024.0/bin/icpx",
             "cStandard": "c17",
             "cppStandard": "c++20",
             "intelliSenseMode": "linux-clang-x64",

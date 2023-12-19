@@ -31,17 +31,8 @@ void main() {
             y[i] = 0.0;
         }
         else {
-            y[i] = xy[i];
+            y[i] = xy[i]*xy[i];
         }
     }
-    // uint i = b * T*C + t * C + c;
-    
-    // // if (xy[i] < 0.0) {
-    // //     y[i] = 0.0;
-    // // }
-    // // else {
-    // //     y[i] = xy[i];
-    // // }
-    // y[i] = B*T*C;
 
 }

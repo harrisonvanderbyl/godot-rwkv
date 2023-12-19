@@ -17,12 +17,16 @@ class RWKV_5_ATT
         Tensor<float> time_faaaa;
         Tensor<float> state;
         Tensor<float> buffer;
+        Tensor<float> buffer1;
+        Tensor<float> buffer2;
+        Tensor<float> buffer3;
         Linear receptance;
         Linear key;
         Linear value;
         Linear gate;
         Linear output;
         GroupNorm ln_x;
+        int layer = 0;
 
         RWKV_5_ATT(){
         }
@@ -30,7 +34,7 @@ class RWKV_5_ATT
         RWKV_5_ATT(int layerID, safetensors::safetensors_t& model, ulong max_batch, ulong max_seq){
             // std::cout << "RWKV_5_ATTcreate:" << layerID << std::endl;
             std::string prefix = "blocks." + std::to_string(layerID) + ".att.";
-
+            this->layer = layerID;
             this->time_mix_k = model[prefix + "time_mix_k"][0][0];
             this->time_mix_v = model[prefix + "time_mix_v"][0][0];
             this->time_mix_r = model[prefix + "time_mix_r"][0][0];
@@ -46,7 +50,10 @@ class RWKV_5_ATT
             
             this->time_decay = model[prefix + "time_decay"];
             this->time_faaaa = model[prefix + "time_faaaa"];
-            this->buffer = Tensor<float>({max_batch, max_seq, dims});
+            this->buffer = Tensor<float>({max_batch, max_seq, dims},0.0);
+            this->buffer1 = Tensor<float>({max_batch, max_seq, dims},0.0);
+            this->buffer2 = Tensor<float>({max_batch, max_seq, dims},0.0);
+            this->buffer3 = Tensor<float>({max_batch, max_seq, dims},0.0);
 
             this->timeshift = TimeShift(max_batch, max_seq, dims);
 
@@ -58,47 +65,53 @@ class RWKV_5_ATT
             this->ln_x = GroupNorm(model[prefix + "ln_x.weight"], model[prefix + "ln_x.bias"], n_head, max_batch, max_seq);
             
         }
+
+
+
         Tensor<float> operator()(Tensor<float>& input){
+            // std::cout << "RWKV_5_ATT:" << this->layer << std::endl;
             this->buffer.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
          
             auto xx = this->timeshift(input);
-            this->time_mix_k.lerp(xx, input, this->buffer);
-            auto k = this->key(this->buffer);
-            this->time_mix_v.lerp(xx, input, this->buffer);
-            auto v = this->value(this->buffer);
-            this->time_mix_r.lerp(xx, input, this->buffer);
-            auto r = this->receptance(this->buffer);
-            this->time_mix_g.lerp(xx, input, this->buffer);
-            auto gv = this->gate(this->buffer);
-            
+
+            this->buffer1.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+            this->buffer2.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+            this->buffer3.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+            this->buffer.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+
            
+            this->time_mix_k.lerp(xx, input, this->buffer);
+            auto k = this->key.buffer;
+            this->time_mix_v.lerp(xx, input, this->buffer1);
+            auto v = this->value.buffer;
+            this->time_mix_r.lerp(xx, input, this->buffer2);
+            auto r = this->receptance.buffer;
+            this->time_mix_g.lerp(xx, input, this->buffer3);
+            auto gv = this->gate.buffer;  
+
+            k.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+            v.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+            r.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+            gv.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
+
+            matmul(
+                this->key.weight,this->key.range,this->key.offset,this->buffer,k,
+                this->value.weight,this->value.range,this->value.offset,this->buffer1,v,
+                this->receptance.weight,this->receptance.range,this->receptance.offset,this->buffer2,r,
+                this->gate.weight,this->gate.range,this->gate.offset,this->buffer3,gv
+            );
+
+
     
             this->state.wkv5(r,k,v,this->time_decay,this->time_faaaa, this->buffer);
-            
-            // std::cout << "WKVOUT:" << crbuff[0][0] << std::endl;
-            
-         
-            this->buffer.multiply(1./8, this->buffer);
-
-            // std::cout << "WKVOUT/8:" << crbuff[0][0] << std::endl;
-            
-
-            // std::cout << crbuff[0][0] << std::endl;
           
             auto xxa = this->ln_x(this->buffer);
-            /*
-            tensor([-0.0285, -0.0082, -0.0168,  0.0204,  0.0476])
-            */
-            // std::cout << "xxa:" << xxa[0][0] << std::endl;
-            gv.sigmoid(this->buffer);
-            this->buffer.multiply(gv, this->buffer);
-            
-            xxa.multiply(this->buffer, this->buffer);
-            
-         
+
+            gv.swishmult(xxa,this->buffer);
+               
             auto xout = this->output(this->buffer);
 
-            
+             
             return xout;
 
 

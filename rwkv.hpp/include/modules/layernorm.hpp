@@ -79,7 +79,7 @@ class GroupNorm
                                 auto mbuftemp = this->buffer[i][j][k];
                                 auto subweight = this->weight[k];
                                 auto subbias = this->bias[k];
-                                input[i][j][k].layernorm(subweight, subbias, mbuftemp);
+                                input[i][j][k].layernorm(subweight, subbias, mbuftemp,64e-5);
                             }
                         }
                     }
@@ -99,7 +99,7 @@ class GroupNorm
                 // vuda
                 auto stream_id = 0;
                 auto kernalparams = vuda::dim3(Batch, Seq, Head);
-                vuda::launchKernel("./shaders/layernorm.spv", "main", stream_id, kernalparams, Batch, Seq, Head*Out ,Head, B, A, D, C);
+                vuda::launchKernel("./shaders/groupnorm.glsl.spv", "main", stream_id, kernalparams, Batch, Seq, Head*Out ,Head, B, A, D, C);
                 vuda::streamSynchronize(stream_id);
             }
            

@@ -62,16 +62,21 @@ public:
     Tensor<float> operator()(std::vector<std::vector<ulong>> input)
     {
         auto x = emb1(input);
+        // std::cout << "x:" << x << std::endl;
         x = ln0(x);
         for (size_t i = 0; i < layers; i++)
         {
             x = blocks[i](x);
         }
         auto xm = ln_out(x);
+        // std::cout << "xm:" << xm << std::endl;
         auto t3 = output(xm);
+        // std::cout << "t3:" << t3 << std::endl;
+        // std::cout << output.weight << std::endl;
         output.buffer.unsafereshape({x.shape[0], x.shape[1], t3.shape[2]});
         if(t3.device.device_type.i != KHVMLCPU.i){
             t3.unloadVKBuffer(output.buffer);
+            return output.buffer;
         }
         return output.buffer;
     }
@@ -167,9 +172,7 @@ public:
             blocks[i].ffn.time_mix_r.sendToVulkan();
             blocks[i].ffn.timeshift.toVulkan();
             blocks[i].ffn.buffer.sendToVulkan();
-
-
-            
+  
         }
         
     }

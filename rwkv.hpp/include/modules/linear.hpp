@@ -6,7 +6,7 @@
 class Linear
 {
     public:
-        Tensor<bfloat16> weight;
+        Tensor<u_char> weight;
         Tensor<float> range;
         Tensor<float> offset;
         Tensor<float> buffer;
@@ -14,6 +14,10 @@ class Linear
         bool isbf16 = false;
         bool onGPU = false;
         Tensor<float> vkbuffer;
+
+        ulong batch_size = 0;
+        ulong seq_len = 0;
+        ulong hidden_size = 0;
         
 
         
@@ -27,21 +31,21 @@ class Linear
                 this->offset = model[prefix + ".weight.zero"];
                 this->quantized = true;
                 auto temp = model.getUCHAR(prefix + ".weight");
-                this->weight = *(Tensor<bfloat16>*)&temp;
+                this->weight = temp;
 
             }else{
 
                 const auto& meta = model.metas.at(prefix + ".weight");
             
                 if (meta.dtype == TENSORTYPE::kBFLOAT_16){
-                    this->weight = model.getBF16(prefix + ".weight");
-                    this->isbf16 = true;
+                    // this->weight = model.getBF16(prefix + ".weight");
+                    // this->isbf16 = true;
                 }
                 else{
                     // std::cout << "Exception:" << e.what() << std::endl;
                     // std::cout << "Linear:" << prefix << " is not BF16" << std::endl;
                     auto temp = model[prefix + ".weight"];
-                    this->weight = *(Tensor<bfloat16>*)&temp;
+                    this->weight = *(Tensor<u_char>*)&temp;
                     this->isbf16 = false;
                     
                 }
@@ -49,6 +53,10 @@ class Linear
             
 
             this->buffer = Tensor<float>({max_batch, max_seq, this->weight.shape[0]});
+
+            this->batch_size = max_batch;
+            this->seq_len = max_seq;
+            this->hidden_size = this->weight.shape[0];
         }
 
         // Copy constructor
@@ -60,27 +68,15 @@ class Linear
             this->buffer = other.buffer;
             this->isbf16 = other.isbf16;
             this->onGPU = other.onGPU;
+            this->vkbuffer = other.vkbuffer;
+            this->batch_size = other.batch_size;
+            this->seq_len = other.seq_len;
+            this->hidden_size = other.hidden_size;
 
             
         }
         
-        // Tensor<float,HVMLVULKAN> operator()(Tensor<float, HVMLVULKAN>& input) {
-        //     if (this->quantized){
-        //         auto devicemap = input.device.device_type.i + this->weight.device.device_type.i + this->range.device.device_type.i + this->offset.device.device_type.i;
-
-        //         assert (devicemap == 4);
-
-        //         auto mzweight = this->weight.sendToVulkan<uint8_t>();
-        //         auto mzrange = this->range.sendToVulkan();
-        //         auto mzoffset = this->offset.sendToVulkan();
-        //         auto tempinput = input.sendToVulkan();
-
-        //         mzweight.matmul(mzrange, mzoffset, tempinput, this->vkbuffer);
-                
-        //         return vkbuffer;
-
-        //     }
-        // }
+    
         
         template<typename T>
         Tensor<float,T> operator()(Tensor<float,T>& input) {
@@ -95,11 +91,13 @@ class Linear
                         auto mzrange = this->range.sendToVulkan();
                         auto mzoffset = this->offset.sendToVulkan();
                         auto tempinput = input.sendToVulkan();
-                        auto buff = this->vkbuffer.sendToVulkan();
+                        this->vkbuffer.unsafereshape({input.shape[0], input.shape[1], this->weight.shape[0]});
+                        this->buffer.unsafereshape({input.shape[0], input.shape[1], this->weight.shape[0]});
+                        this->vkbuffer.sendToVulkan();
 
-                        mzweight.matmul(mzrange, mzoffset, tempinput, buff);
+                        mzweight.matmul(mzrange, mzoffset, tempinput, *(Tensor<float,HVMLVULKAN>*)&this->vkbuffer);
                         
-                        return vkbuffer;
+                        return *(Tensor<float,T>*)&this->vkbuffer;
                     }
                     else{
                         auto mbuff = Tensor<float>({input.shape[0], input.shape[1], this->weight.shape[0]},
@@ -137,10 +135,9 @@ class Linear
         }
 
         void toVulkan(){
-            cudaSetDevice(0);
             if (this->quantized){
                 // std::cout << "toVulkan: " << this->weight << std::endl;
-                this->weight.sendToVulkan<uint8_t>();
+                this->weight.sendToVulkan();
                 // std::cout << "toVulkan: " << this->range << std::endl;
                 this->range.sendToVulkan();
                 // std::cout << "toVulkan: " << this->offset << std::endl;
@@ -151,7 +148,7 @@ class Linear
                 ((Tensor<float>*)&this->weight)->sendToVulkan();
             }
 
-            this->vkbuffer = Tensor<float>({this->buffer.shape[0], this->buffer.shape[1], this->buffer.shape[2]}, 0.0);
+            this->vkbuffer = Tensor<float>({this->batch_size, this->seq_len, this->hidden_size}, 0.0);
             this->vkbuffer.sendToVulkan();
 
             this->onGPU = true;
