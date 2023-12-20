@@ -152,7 +152,7 @@ SIMDTYPE exp_ps_fill(SIMDTYPE x)
 }
 
 #ifndef ulong
-#define ulong uint64_t
+#define ulong size_t
 #endif
 
 #define LOADBF16(x) x

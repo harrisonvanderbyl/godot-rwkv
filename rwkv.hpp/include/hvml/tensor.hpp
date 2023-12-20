@@ -114,9 +114,9 @@ public:
     // DataType if DeviceData is HVMLCPU
     // VKTensorInfo if DeviceData is VKTensorInfo
     DataType* data __attribute__((aligned(ALIGNMENT)));
-    uint64_t data_size_in_elements;
-    uint64_t data_size_in_bytes;
-    uint64_t total_original_allocated_bytes;
+    ulong data_size_in_elements;
+    ulong data_size_in_bytes;
+    ulong total_original_allocated_bytes;
 
     VKTensorInfo<DeviceData> device = {
         .device_type = {
@@ -125,7 +125,7 @@ public:
         .offset = 0,
     };
 
-    std::vector<uint64_t> shape = {};
+    std::vector<ulong> shape = {};
 
     Tensor()
     {
@@ -135,9 +135,9 @@ public:
         this->total_original_allocated_bytes = 0;
     }
 
-    uint64_t get_data_size_in_elements(std::vector<uint64_t> shape)
+    ulong get_data_size_in_elements(std::vector<ulong> shape)
     {
-        uint64_t size = 1;
+        ulong size = 1;
         for (size_t i = 0; i < shape.size(); i++)
         {
             size *= shape[i];
@@ -146,7 +146,7 @@ public:
         return size;
     }
 
-    uint64_t get_data_size_in_bytes()
+    ulong get_data_size_in_bytes()
     {
         return this->data_size_in_elements * sizeof(DataType);
     }
@@ -210,7 +210,7 @@ public:
         {
             return kINT_64;
         }
-        else if (std::is_same<DataType, uint64_t>::value)
+        else if (std::is_same<DataType, ulong>::value)
         {
             return kUINT_64;
         }
@@ -239,7 +239,7 @@ public:
         }
         this->data_size_in_elements = tensor.data_size_in_elements;
         this->data_size_in_bytes = tensor.data_size_in_bytes;
-        for (uint64_t i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
+        for (ulong i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(this->data + i, LOAD(tensor.data + i));
         }
@@ -344,7 +344,7 @@ public:
         }
     }
 
-    Tensor(std::vector<uint64_t> shape)
+    Tensor(std::vector<ulong> shape)
     {
 
         // copy the shape
@@ -362,7 +362,7 @@ public:
         this->data = (DataType *)aligned_alloc(ALIGNMENT, this->data_size_in_bytes);
     }
 
-    Tensor(std::vector<uint64_t> shape, DataType value)
+    Tensor(std::vector<ulong> shape, DataType value)
     {
         // call the other constructor
 
@@ -387,7 +387,7 @@ public:
         this->fill(value);
     }
 
-    Tensor(std::vector<uint64_t> shape, DataType *data)
+    Tensor(std::vector<ulong> shape, DataType *data)
     {
         this->shape.clear();
         for (size_t i = 0; i < shape.size(); i++)
@@ -437,7 +437,7 @@ public:
     {
         if (this->device.device_type.i == KHVMLCPU.i){
 #pragma omp parallel for
-        for (uint64_t i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
+        for (ulong i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(result.data + i, MULTIPLY(LOAD(this->data + i), LOAD(tensor.data + i)));
         }
@@ -455,7 +455,7 @@ public:
     {
         if (this->device.device_type.i == KHVMLCPU.i){
         #pragma omp parallel for
-        for (uint64_t i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
+        for (ulong i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(result.data + i, MULTIPLY(LOAD(this->data + i), SET1(input)));
         }
@@ -471,7 +471,7 @@ public:
 
    
 
-    void reshape(std::vector<uint64_t> new_shape)
+    void reshape(std::vector<ulong> new_shape)
     {
 
         this->shape.clear();
@@ -486,7 +486,7 @@ public:
         this->data_size_in_bytes = get_data_size_in_bytes();
     }
 
-    void unsafereshape(std::vector<uint64_t> new_shape)
+    void unsafereshape(std::vector<ulong> new_shape)
     {
 
         this->shape.clear();
@@ -789,7 +789,7 @@ public:
     template <typename T>
     void layernorm(const Tensor<DataType,T> &weight, const Tensor<DataType,T> &bias, const Tensor<DataType,T> &result, float eps = 1e-5)
     {
-        uint64_t BTT = 1;
+        ulong BTT = 1;
 
         if (this->shape.size() > 1)
         {
@@ -799,7 +799,7 @@ public:
             }
         }
 
-        uint64_t OUT = this->shape[this->shape.size() - 1];
+        ulong OUT = this->shape[this->shape.size() - 1];
 
         // confirm result length
         // std::cout << "result.data_size_in_elements: " << result.data_size_in_elements << std::endl;
@@ -820,17 +820,17 @@ public:
         // std::cout << "devicemap: " << devicemap << std::endl;
         if (this->device.device_type.i == KHVMLCPU.i){
             // #pragma omp parallel for
-            for (uint64_t i = 0; i < BTT; i += 1)
+            for (ulong i = 0; i < BTT; i += 1)
             {
                 float mean = 0.0f;
                 float var = 0.0f;
-                for (uint64_t j = 0; j < OUT; j += SIMD_WIDTH)
+                for (ulong j = 0; j < OUT; j += SIMD_WIDTH)
                 {
                     mean += REDUCE(LOAD(A + i * OUT + j));
                 }
                 mean /= OUT;
 
-                for (uint64_t j = 0; j < OUT; j += SIMD_WIDTH)
+                for (ulong j = 0; j < OUT; j += SIMD_WIDTH)
                 {
                     auto acc = ADD(LOAD(A + i * OUT + j), SET1(-1.0f * mean));
                     acc = MULTIPLY(acc, acc);
@@ -838,7 +838,7 @@ public:
                 }
                 var /= OUT;
 
-                for (uint64_t j = 0; j < OUT; j += SIMD_WIDTH)
+                for (ulong j = 0; j < OUT; j += SIMD_WIDTH)
                 {
                     // std::cout << "level1: " <<j<< std::endl;
                     auto acc = ADD(LOAD(A + i * OUT + j), SET1(-1.0f * mean));
@@ -883,7 +883,7 @@ public:
             
 
 // #pragma omp parallel for schedule(static, 32)
-        for (uint64_t i = 0; i < result.data_size_in_elements; i += SIMD_WIDTH)
+        for (ulong i = 0; i < result.data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(C + i, MULTADD(LOAD(B + i), LOAD(this->data + (i % IN)), MULTIPLY(LOAD(A + i), SET1(1.0f) - LOAD(this->data + (i % IN)))));
         }}
@@ -917,7 +917,7 @@ public:
         if (this->device.device_type.i == KHVMLCPU.i){
 
 // #pragma omp parallel for schedule(static, 256)
-        for (uint64_t i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
+        for (ulong i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(C + i, MAX(LOAD(A + i), SET1(0.0f)));
         }
@@ -945,7 +945,7 @@ public:
         if (this->device.device_type.i == KHVMLCPU.i){
 
 // #pragma omp parallel for schedule(static, 32)
-        for (uint64_t i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
+        for (ulong i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             auto a = MAX(LOAD(A + i), SET1(0.0f));
             STORE(C + i, MULTIPLY(a, a));
@@ -976,7 +976,7 @@ public:
         // std::cout << "result.sigmoid.data_size_in_elements: " << result.data_size_in_elements << std::endl;
 if (this->device.device_type.i == KHVMLCPU.i){
 // #pragma omp parallel for schedule(static, 32)
-        for (uint64_t i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
+        for (ulong i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(C + i, DIVIDE(SET1(1.0f), ADD(SET1(1.0f), EXP(MULTIPLY(SET1(-1.0f), LOAD(A + i))))));
         }
@@ -1003,7 +1003,7 @@ if (this->device.device_type.i == KHVMLCPU.i){
         // std::cout << "result.sigmoid.data_size_in_elements: " << result.data_size_in_elements << std::endl;
 if (this->device.device_type.i == KHVMLCPU.i){
 // #pragma omp parallel for
-        for (uint64_t i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
+        for (ulong i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(C + i,DIVIDE(LOAD(B+i), ADD(SET1(1.0f), EXP(MULTIPLY(SET1(-1.0f), LOAD(A + i))))));
         }
@@ -1030,7 +1030,7 @@ if (this->device.device_type.i == KHVMLCPU.i){
         // std::cout << "result.sigmoid.data_size_in_elements: " << result.data_size_in_elements << std::endl;
 if (this->device.device_type.i == KHVMLCPU.i){
 // #pragma omp parallel for
-        for (uint64_t i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
+        for (ulong i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(C + i,DIVIDE(MULTIPLY(LOAD(B+i),LOAD(A + i)), ADD(SET1(1.0f), EXP(MULTIPLY(SET1(-1.0f), LOAD(A + i))))));
         }
@@ -1058,10 +1058,10 @@ if (this->device.device_type.i == KHVMLCPU.i){
     }
 
     // [] operator
-    Tensor<DataType> operator[](const uint64_t index)
+    Tensor<DataType> operator[](const ulong index)
     {
-        uint64_t stride = 1;
-        std::vector<uint64_t> new_shape = {};
+        ulong stride = 1;
+        std::vector<ulong> new_shape = {};
         for (size_t i = 1; i < this->shape.size(); i++)
         {
             stride *= this->shape[i];
