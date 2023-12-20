@@ -16,7 +16,7 @@ int main( int argc, char** argv ){
 
     RWKVTokenizer worldTokenizer("rwkv_vocab_v20230424.txt");
     
-    auto tokens = worldTokenizer.encode("### Instruction: please create a long harry potter fanfiction. \n\n### Response:");
+    auto tokens = worldTokenizer.encode("\n\nUser: please create a long harry potter fanfiction. \n\nAssistant:");
 
     if (argc > 2)
     {

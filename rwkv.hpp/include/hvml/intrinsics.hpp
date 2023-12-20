@@ -20,10 +20,12 @@
 #define MAX(x, y) _mm512_max_ps(x, y)
 #define SIMDTYPE __m512
 
-// check if intel compiler is used
-// #ifdef __INTEL_COMPILER
-// #define EXP(x) _mm512_exp_ps(x)
-// #else
+// check if using intel compiler
+#if defined(__INTEL_LLVM_COMPILER)
+#pragma message("AVX-512 exp is supported")
+#define EXP(x) _mm512_exp_ps(x)
+#else
+#pragma message("AVX-512 exp is not supported, use intel compiler to use avx512exp, doing fallback")
 #define EXP(x) exp_ps_fill(x)
 SIMDTYPE exp_ps_fill(SIMDTYPE x)
 {
@@ -34,6 +36,7 @@ SIMDTYPE exp_ps_fill(SIMDTYPE x)
     }
     return result;
 }
+#endif
 // #endif
 
 #define DIVIDE(x, y) _mm512_div_ps(x, y)
