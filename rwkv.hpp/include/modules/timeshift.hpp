@@ -10,17 +10,17 @@ class TimeShift
         Tensor<float> state;
         
         Tensor<float> buffer;
-        uint64_t max_batch;
-        uint64_t max_seq;
-        uint64_t dims;
+        ulong max_batch;
+        ulong max_seq;
+        ulong dims;
         
         TimeShift(){
         }
 
         TimeShift(const ulong max_batchi, const ulong max_seqi, const ulong dimsi){
-            std::vector<uint64_t> size = {max_batchi, max_seqi, dimsi};
+            std::vector<ulong> size = {max_batchi, max_seqi, dimsi};
             this->buffer = Tensor<float>(size,0.0f);
-            std::vector<uint64_t> state_size = {max_batchi, 1UL, dimsi};
+            std::vector<ulong> state_size = {max_batchi, 1UL, dimsi};
             // std::cout << "TimeShift:" << state_size[0] << std::endl;
             this->state = Tensor<float>(state_size,0.0f);
             
