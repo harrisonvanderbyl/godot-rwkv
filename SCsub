@@ -10,14 +10,6 @@ cenv = os.getcwd()
 
 
 if(env["PLATFORM"] != "win32"):
-
-    # env_rwkv.Prepend(
-    #     LIBPATH=["/lib/x86_64-linux-gnu"])
-   
-    # env_rwkv.Append(LINKFLAGS=['-Wl,-znodelete'])
-    
-    # set env variable VK_USE_PLATFORM_XLIB_KHR = false
-
     
 
     env_rwkv.add_source_files(env.modules_sources, "*.cpp")
@@ -27,32 +19,25 @@ if(env["PLATFORM"] != "win32"):
     
     # -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL
     
-
     env_rwkv.Append(CCFLAGS=['-fexceptions'])
    
-    
     # add -O3
     env_rwkv.Append(CCFLAGS=['-O3'])
     
     # add fast math
     env_rwkv.Append(CCFLAGS=['-ffast-math'])
     
-    env_rwkv.Append(CCFLAGS=["-lomp", "-lgomp", "-fopenmp"])
-    env.Append(CCFLAGS=["-lomp", "-lgomp", "-fopenmp"])
-    env.Append(LINKFLAGS=["-lomp", "-lgomp", "-fopenmp"])
     
     
     # add ./rwkv.hpp/include to include path
     env_rwkv.Append(CPPPATH=["./rwkv.hpp/include"])
 
 else:
-    libend = ".windows.editor.x86_64.lib"
-
- 
- 
-
-
-    env_rwkv.Append(LINKFLAGS=['-Wl,-znodelete'])
-
+    env_rwkv.Append(CCFLAGS=['/O2'])
+    env_rwkv.Append(CCFLAGS=['/EHsc'])
+    
+    # add ./rwkv.hpp/include to include path
+    env_rwkv.Append(CPPPATH=["./rwkv.hpp/include"])
+    
 
     env_rwkv.add_source_files(env.modules_sources, "*.cpp")
