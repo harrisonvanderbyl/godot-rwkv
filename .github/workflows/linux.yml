@@ -29,9 +29,6 @@ jobs:
 
 
 
-        id: cuda-toolkit
-        with:
-          cuda: '11.7.0'
       # Setup custom buildroot so we may use an old but compatible GLIBC version, while keeping recent toolchain.
       # This allows to make production builds that are compatible with older Linux distros.
       # TODO Enhancement: cache buildroot so future runs can use it?
