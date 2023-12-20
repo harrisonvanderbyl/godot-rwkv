@@ -6,12 +6,12 @@
 #include <cmath>
 #define UINT8THREADALLOC 64
 
-#ifdef __AVX512F__ // This macro is defined if AVX-512 is supported
+#if defined(__AVX512F__) && defined(HVMLUSEAVX512) // This macro is defined if AVX-512 is supported
 #include <immintrin.h>
 
 #define SIMD_WIDTH 16
-#define LOAD(x) _mm512_loadu_ps(x)
-#define STORE(x, y) _mm512_storeu_ps(x, y)
+#define LOAD(x) _mm512_load_ps(x)
+#define STORE(x, y) _mm512_store_ps(x, y)
 #define SET1(x) _mm512_set1_ps(x)
 #define MULTIPLY(x, y) _mm512_mul_ps(x, y)
 #define MULTADD(x, y, z) _mm512_fmadd_ps(x, y, z)
@@ -79,8 +79,8 @@ SIMDTYPE exp_ps_fill(SIMDTYPE x)
 #ifdef __AVX2__
 #include <immintrin.h>
 #define SIMD_WIDTH 8
-#define LOAD(x) _mm256_loadu_ps(x)
-#define STORE(x, y) _mm256_storeu_ps(x, y)
+#define LOAD(x) _mm256_load_ps(x)
+#define STORE(x, y) _mm256_store_ps((float*)x, y)
 #define SET1(x) _mm256_set1_ps(x)
 #define MULTIPLY(x, y) _mm256_mul_ps(x, y)
 #define MULTADD(x, y, z) _mm256_fmadd_ps(x, y, z)
@@ -93,6 +93,10 @@ SIMDTYPE exp_ps_fill(SIMDTYPE x)
 #define MAX(x, y) _mm256_max_ps(x, y)
 #define DIVIDE(x, y) _mm256_div_ps(x, y)
 #define SIMDTYPE __m256
+#if defined(__INTEL_LLVM_COMPILER)
+#pragma message("AVX-2 exp is supported")
+#define EXP(x) _mm256_exp_ps(x)
+#else
 #define EXP(x) exp_ps_fill(x)
 SIMDTYPE exp_ps_fill(SIMDTYPE x)
 {
@@ -103,6 +107,7 @@ SIMDTYPE exp_ps_fill(SIMDTYPE x)
     }
     return result;
 }
+#endif
 // print out the SIMD width
 #pragma message("AVX-2 is supported")
 

@@ -4,6 +4,7 @@
 #include "rwkv.hpp"
 #include "sampler/sample.hpp"
 #include "tokenizer/tokenizer.hpp"
+
 int main( int argc, char** argv ){
 
     std::cout << "Hello World" << std::endl;

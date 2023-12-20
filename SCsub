@@ -15,7 +15,7 @@ if(env["PLATFORM"] != "win32"):
     env_rwkv.add_source_files(env.modules_sources, "*.cpp")
     
     # add -march=avx512
-    env_rwkv.Append(CCFLAGS=['-march=skylake-avx512'])
+    env_rwkv.Append(CCFLAGS=['-march=haswell'])
     
     # -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL
     
@@ -46,7 +46,7 @@ else:
     env_rwkv.Append(CPPPATH=[path + "/rwkv.hpp/include"])
     
     # set avx512 
-    env_rwkv.Append(CCFLAGS=['/arch:AVX512'])
+    env_rwkv.Append(CCFLAGS=['/arch:AVX2'])
         
 
     env_rwkv.add_source_files(env.modules_sources, "*.cpp")

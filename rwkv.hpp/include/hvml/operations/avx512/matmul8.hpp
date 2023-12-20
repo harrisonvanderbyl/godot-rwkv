@@ -93,7 +93,7 @@ void dopartial(MatMulJob job) {
 	auto Ar = job.Ar;
 	auto bbt = job.bbt;
 	auto ii = job.ii;
-	#ifdef __AVX512F__ 
+	#if defined(__AVX512F__) && defined(HVMLUSEAVX512)
 		const auto Ario = _mm512_load_ps(Ar + ii);
 		const auto Aoioo = _mm512_div_ps(_mm512_load_ps(Ao + ii), Ario);
 		__m512 zz = _mm512_setzero_ps();
@@ -118,9 +118,52 @@ void dopartial(MatMulJob job) {
 		_mm512_store_ps(
 				(void *)(C + bbt * OUT + ii),
 				zz * Ario);
-	#endif
+	#elif defined(__AVX2__)
+		for (ulong b = 0; b < 16; b+= 8){
+		const auto Ario1 = LOAD(Ar + ii+b);
+		const auto Aoio1 = DIVIDE(LOAD(Ao + ii + b),Ario1);
 
-	#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+		auto zz1 = SET1(0.0);
+
+		for (uint32_t i = ii+b; i < ii + b+8; i += 1) {
+			auto Aoio = Aoio1[i&7];
+
+			const auto IAIN = A + i * IN;
+
+			auto sum1 = SET1(0.0);
+			auto sum2 = SET1(0.0);
+			
+			for (uint32_t k = 0; k < IN; k += 16) {
+				// avx2
+				auto w = _mm256_cvtepu8_epi32(_mm_loadu_si128((__m128i *)(IAIN + k)));  // Load the input uint8_t vector
+				// convert uint32_t to float32x8_t
+				auto u = _mm256_cvtepi32_ps(w)+Aoio;   // Convert uint32_t to float32_t
+				// Load the input float vector
+				// Perform the multiplication with inp vector
+				sum1 = MULTADD(u, LOAD(B + bbt * IN + k),sum1);
+
+				auto w1 = _mm256_cvtepu8_epi32(_mm_loadu_si128((__m128i *)(IAIN + k + 8)));  // Load the input uint8_t vector
+
+				auto u1 = _mm256_cvtepi32_ps(w1)+Aoio;   // Convert uint32_t to float32_t
+
+				sum2 = MULTADD(u1, LOAD(B + bbt * IN + k + 8),sum2);
+				
+			}
+
+			sum1 = sum1+sum2;
+			
+			zz1[i&7]= REDUCE(sum1);
+			
+
+		}
+
+		
+		STORE(
+				(void *)(C + bbt * OUT + ii + b),
+				zz1 * Ario1);
+		}
+
+	#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
 	 	for (ulong b = 0; b < 16; b+= 4){
 		const auto Ario1 = LOAD(Ar + ii+b);
 		const auto Aoio1 = DIVIDE(LOAD(Ao + ii + b),Ario1);
