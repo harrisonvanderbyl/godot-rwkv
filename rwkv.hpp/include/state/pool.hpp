@@ -172,8 +172,10 @@ namespace vuda
 
             void reset(const vk::Device device)
             {
-                device.resetFences(1, &m_fence);
+                auto res = device.resetFences(1, &m_fence);
 
+                if(res != vk::Result::eSuccess)
+                    throw std::runtime_error("vuda::command_buffer_ext::reset: failed to reset fence.");
                 //
                 // return all descriptor sets to their respective pools
                 for(size_t i = 0; i < m_desc_pools.size(); ++i)

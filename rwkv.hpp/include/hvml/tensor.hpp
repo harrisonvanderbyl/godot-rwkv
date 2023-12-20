@@ -14,7 +14,6 @@
 // test if vulkan is enabled by seeing if <vulkan/vulkan.h> exists
 #if __has_include(<vulkan/vulkan.h>)
     #include <vuda_runtime.hpp>
-    #define VULKAN_ENABLED
 #else
     #pragma message("Vulkan library not found, not building with vulkan")
     #define cudaGetErrorString(x) "error"
@@ -135,12 +134,12 @@ public:
         this->total_original_allocated_bytes = 0;
     }
 
-    ulong get_data_size_in_elements(std::vector<ulong> shape)
+    ulong get_data_size_in_elements(std::vector<ulong> shapea)
     {
         ulong size = 1;
-        for (size_t i = 0; i < shape.size(); i++)
+        for (size_t i = 0; i < shapea.size(); i++)
         {
-            size *= shape[i];
+            size *= shapea[i];
         }
         this->data_size_in_elements = size;
         return size;
@@ -255,16 +254,16 @@ public:
 
         this->data_size_in_bytes = this->data_size_in_elements * sizeof(Odata);
 
-        Odata* data;
+        Odata* dataa;
 
-        auto allocerror = cudaMalloc((void**)&data, this->total_original_allocated_bytes);
+        auto allocerror = cudaMalloc((void**)&dataa, this->total_original_allocated_bytes);
 
         if (allocerror != cudaSuccess)
         {
             std::cout << "cudaMalloc failed: " << cudaGetErrorString(allocerror) << std::endl;
         }
 
-        auto memerror = cudaMemcpy(data, (DataType*)this->data, this->data_size_in_bytes, cudaMemcpyHostToDevice);
+        auto memerror = cudaMemcpy(dataa, (DataType*)this->data, this->data_size_in_bytes, cudaMemcpyHostToDevice);
 
         if (memerror != cudaSuccess)
         {
@@ -273,7 +272,7 @@ public:
 
         // create vulkan tensor info
     
-        this->data = (DataType*)data;
+        this->data = (DataType*)dataa;
         this->device.device_type.i = KHVMLVULKAN.i;
 
 
@@ -344,14 +343,14 @@ public:
         }
     }
 
-    Tensor(std::vector<ulong> shape)
+    Tensor(std::vector<ulong> shapea)
     {
 
         // copy the shape
         this->shape.clear();
-        for (size_t i = 0; i < shape.size(); i++)
+        for (size_t i = 0; i < shapea.size(); i++)
         {
-            this->shape.push_back(shape[i]);
+            this->shape.push_back(shapea[i]);
         }
         this->data_size_in_elements = get_data_size_in_elements(this->shape);
         this->data_size_in_bytes = get_data_size_in_bytes();
@@ -362,20 +361,20 @@ public:
         this->data = (DataType *)aligned_alloc(ALIGNMENT, this->data_size_in_bytes);
     }
 
-    Tensor(std::vector<ulong> shape, DataType value)
+    Tensor(std::vector<ulong> shapea, DataType value)
     {
         // call the other constructor
 
         this->shape.clear();
-        for (size_t i = 0; i < shape.size(); i++)
+        for (size_t i = 0; i < shapea.size(); i++)
         {
             // std::cout << "shape: " << shape[i] << std::endl;
-            if (shape[i] > 5960578998)
+            if (shapea[i] > 5960578998)
             {
                 // throw std::runtime_error("Tensor size is too large");
                 std::cout << "Tensor size is too large" << std::endl;
             }
-            this->shape.push_back(shape[i]);
+            this->shape.push_back(shapea[i]);
         }
         this->data_size_in_elements = get_data_size_in_elements(this->shape);
         this->data_size_in_bytes = get_data_size_in_bytes();
@@ -387,17 +386,17 @@ public:
         this->fill(value);
     }
 
-    Tensor(std::vector<ulong> shape, DataType *data)
+    Tensor(std::vector<ulong> shapea, DataType *dataa)
     {
         this->shape.clear();
-        for (size_t i = 0; i < shape.size(); i++)
+        for (size_t i = 0; i < shapea.size(); i++)
         {
-            this->shape.push_back(shape[i]);
+            this->shape.push_back(shapea[i]);
         }
         this->data_size_in_elements = get_data_size_in_elements(this->shape);
         this->data_size_in_bytes = get_data_size_in_bytes();
         this->total_original_allocated_bytes = this->data_size_in_bytes;
-        this->data = data;
+        this->data = dataa;
     }
 
     // copy constructor
@@ -436,7 +435,7 @@ public:
     void multiply(Tensor<DataType> &tensor, Tensor<DataType> &result)
     {
         if (this->device.device_type.i == KHVMLCPU.i){
-#pragma omp parallel for
+// #pragma omp parallel for
         for (ulong i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(result.data + i, MULTIPLY(LOAD(this->data + i), LOAD(tensor.data + i)));
@@ -454,7 +453,7 @@ public:
     void multiply(float input, Tensor<DataType> &result)
     {
         if (this->device.device_type.i == KHVMLCPU.i){
-        #pragma omp parallel for
+        // #pragma omp parallel for
         for (ulong i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(result.data + i, MULTIPLY(LOAD(this->data + i), SET1(input)));
@@ -625,7 +624,7 @@ public:
                 {
 
                     auto acc = SET1(0.0f);
-#pragma unroll(16)
+// #pragma unroll(16)
                     for (long k = 0; k < IN; k += 32) // let intrinsics handle the unrolling
                     {
 
@@ -650,7 +649,7 @@ public:
                 {
 
                     auto acc = SET1(0.0f);
-#pragma unroll(16)
+// #pragma unroll(16)
                     for (long k = 0; k < IN; k += 32) // let intrinsics handle the unrolling
                     {
 
@@ -814,9 +813,8 @@ public:
         auto B = bias.data;
         auto C = result.data;
 
-        auto devicemap = this->device.device_type.i + weight.device.device_type.i + bias.device.device_type.i + result.device.device_type.i;
 
-        assert(devicemap % 4 == 0); // assert all tensors are on the same device
+        assert((this->device.device_type.i + weight.device.device_type.i + bias.device.device_type.i + result.device.device_type.i) % 4 == 0); // assert all tensors are on the same device
         // std::cout << "devicemap: " << devicemap << std::endl;
         if (this->device.device_type.i == KHVMLCPU.i){
             // #pragma omp parallel for
@@ -955,9 +953,9 @@ public:
             auto stream_id = 0;
             const auto B = this->shape[0];
             const auto T = this->shape[1];
-            const auto C = this->shape[2];
+            const auto CC = this->shape[2];
             auto kernalparams = vuda::dim3(B, T, 1);
-            vuda::launchKernel("./shaders/relusquare.glsl.spv", "main", stream_id, kernalparams, B,T,C, this->data, result.data);
+            vuda::launchKernel("./shaders/relusquare.glsl.spv", "main", stream_id, kernalparams, B,T,CC, this->data, result.data);
             vuda::streamSynchronize(stream_id);
         }
 
@@ -1098,7 +1096,7 @@ if (this->device.device_type.i == KHVMLCPU.i){
         }
 
         os << "Tensor(";
-        for (int i = 0; i < std::min(tensor.data_size_in_elements, 4UL); i++)
+        for (ulong i = 0; i < std::min(tensor.data_size_in_elements, 4UL); i++)
         {
             os << outdata[i];
             if (i != tensor.data_size_in_elements - 1)
@@ -1112,7 +1110,7 @@ if (this->device.device_type.i == KHVMLCPU.i){
             if (tensor.data_size_in_elements > 8)
             {
                 os << ", ";
-                for (int i = tensor.data_size_in_elements - 4; i < tensor.data_size_in_elements; i++)
+                for (ulong i = tensor.data_size_in_elements - 4; i < tensor.data_size_in_elements; i++)
                 {
                     os << outdata[i];
                     if (i != tensor.data_size_in_elements - 1)
@@ -1124,7 +1122,7 @@ if (this->device.device_type.i == KHVMLCPU.i){
 
         }
         os << ", shape=(";
-        for (int i = 0; i < tensor.shape.size(); i++)
+        for (ulong i = 0; i < tensor.shape.size(); i++)
         {
             os << tensor.shape[i];
             if (i != tensor.shape.size() - 1)
@@ -1145,6 +1143,12 @@ if (this->device.device_type.i == KHVMLCPU.i){
             throw std::runtime_error("Tensor is not a scalar");
         }
         return this->data[0];
+    }
+
+    // cvt from HVMLVULKAN to HVMLDYNAMIC
+    operator Tensor<DataType, HVMLDYNAMIC>()
+    {
+        return Tensor<DataType, HVMLDYNAMIC>(this->shape, this->data);
     }
 
     

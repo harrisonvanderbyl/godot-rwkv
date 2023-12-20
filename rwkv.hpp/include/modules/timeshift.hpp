@@ -60,7 +60,6 @@ class TimeShift
 
                 // vuda
                 auto stream_id = 0;
-                const int CHUNKSIZE = 128;
                 auto kernalparams = vuda::dim3(Batch, 1, 1);
                 vuda::launchKernel("./shaders/timeshift.glsl.spv", "main", stream_id, kernalparams, Batch, Seq, Out,1, A, B, C);
                 vuda::streamSynchronize(stream_id);

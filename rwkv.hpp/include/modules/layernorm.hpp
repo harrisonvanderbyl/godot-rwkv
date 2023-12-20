@@ -86,10 +86,10 @@ class GroupNorm
             }
             else{
                 
-                auto B = input.data;
-                auto A = this->weight.data;
-                auto D = this->bias.data;
-                auto C = this->buffer.data;
+                auto Br = input.data;
+                auto Ar = this->weight.data;
+                auto Dr = this->bias.data;
+                auto Cr = this->buffer.data;
 
                 auto Batch = input.shape[0];
                 auto Seq = input.shape[1];
@@ -99,7 +99,7 @@ class GroupNorm
                 // vuda
                 auto stream_id = 0;
                 auto kernalparams = vuda::dim3(Batch, Seq, Head);
-                vuda::launchKernel("./shaders/groupnorm.glsl.spv", "main", stream_id, kernalparams, Batch, Seq, Head*Out ,Head, B, A, D, C);
+                vuda::launchKernel("./shaders/groupnorm.glsl.spv", "main", stream_id, kernalparams, Batch, Seq, Head*Out ,Head, Br, Ar, Dr, Cr);
                 vuda::streamSynchronize(stream_id);
             }
            

@@ -48,8 +48,8 @@ public:
 
         // std::cout << "layers:" << layers << std::endl;
 
-        auto t1 = model["emb.weight"];
-        this->emb1 = Embedding(t1, max_batch, max_seq);
+        auto t1o = model["emb.weight"];
+        this->emb1 = Embedding(t1o, max_batch, max_seq);
         this->ln0 = LayerNorm(model["blocks.0.ln0.weight"], model["blocks.0.ln0.bias"], max_batch, max_seq);
         this->ln_out = LayerNorm(model["ln_out.weight"], model["ln_out.bias"], max_batch, max_seq);
         this->output = Linear(model, "head", max_batch, max_seq);
@@ -70,12 +70,12 @@ public:
         }
         auto xm = ln_out(x);
         // std::cout << "xm:" << xm << std::endl;
-        auto t3 = output(xm);
+        auto t3o = output(xm);
         // std::cout << "t3:" << t3 << std::endl;
         // std::cout << output.weight << std::endl;
-        output.buffer.unsafereshape({x.shape[0], x.shape[1], t3.shape[2]});
-        if(t3.device.device_type.i != KHVMLCPU.i){
-            t3.unloadVKBuffer(output.buffer);
+        output.buffer.unsafereshape({x.shape[0], x.shape[1], t3o.shape[2]});
+        if(t3o.device.device_type.i != KHVMLCPU.i){
+            t3o.unloadVKBuffer(output.buffer);
             return output.buffer;
         }
         return output.buffer;

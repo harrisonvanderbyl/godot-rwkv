@@ -27,15 +27,15 @@ namespace safetensors {
      *
      */
     class safetensors_t {
-    private:
-        const std::vector<char> storage;
 
     public:
 
         const std::unordered_map<std::string, const metadata_t> metas;
         
-        safetensors_t(std::unordered_map<std::string, const metadata_t> &, std::vector<char> &);
+        safetensors_t(std::unordered_map<std::string, const metadata_t> &metasa, std::vector<char> &storagea)
+            : metas(metasa), storage(storagea) {}
 
+        const std::vector<char> storage;
         /**
          *
          * @return
@@ -144,8 +144,7 @@ namespace safetensors {
         return {metas_table, tensors_storage};
     }
 
-    safetensors_t::safetensors_t(std::unordered_map<std::string, const metadata_t> &metas, std::vector<char> &storage)
-            : metas(metas), storage(storage) {}
+    
 
     
     Tensor<float> safetensors_t::operator[](const char *name) const {

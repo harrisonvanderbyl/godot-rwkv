@@ -9,11 +9,11 @@ class Embedding
         Tensor<float> vkbuffer;
         Embedding(){
         }
-        Embedding(Tensor<float> weight, ulong max_batch, ulong max_seq){
-            this->weight = weight;
-            this->max_batch = max_batch;
-            this->max_seq = max_seq;
-            this->buffer = Tensor<float>({max_batch, max_seq, weight.shape[1]});
+        Embedding(Tensor<float> weighta, ulong max_batcha, ulong max_seqa){
+            this->weight = weighta;
+            this->max_batch = max_batcha;
+            this->max_seq = max_seqa;
+            this->buffer = Tensor<float>({max_batcha, max_seqa, weight.shape[1]});
         }
         Tensor<float> operator()(std::vector<std::vector<ulong>> indices){
 

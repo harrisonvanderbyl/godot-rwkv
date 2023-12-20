@@ -59,11 +59,11 @@ namespace vuda
 
         dim3(void) : x(1), y(1), z(1)
         {}
-        dim3(const uint32_t x) : x(x), y(1), z(1)
+        dim3(const uint32_t xx) : x(xx), y(1), z(1)
         {}
-        dim3(const uint32_t x, const uint32_t y) : x(x), y(y), z(1)
+        dim3(const uint32_t xx, const uint32_t yx) : x(xx), y(yx), z(1)
         {}
-        dim3(const uint32_t x, const uint32_t y, const uint32_t z) : x(x), y(y), z(z)
+        dim3(const uint32_t xx, const uint32_t yx, const uint32_t zx) : x(xx), y(yx), z(zx)
         {}
     };
     

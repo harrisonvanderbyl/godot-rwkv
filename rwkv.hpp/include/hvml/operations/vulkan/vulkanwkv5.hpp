@@ -10,7 +10,6 @@ void Tensor<float, HVMLVULKAN>::wkv5(Tensor<float,HVMLVULKAN> &r, Tensor<float,H
         auto vv = v.data;
         auto ww = w.data;
         auto uu = u.data;
-        auto ss = this->data;
         auto out = y.data;
 
         uint B = r.shape[0];
@@ -18,18 +17,6 @@ void Tensor<float, HVMLVULKAN>::wkv5(Tensor<float,HVMLVULKAN> &r, Tensor<float,H
         uint C = r.shape[2];
         uint H = this->shape[1];
 
-        // 1d
-        uint bsize = H * T * (C / H);
-      
-        // 1d tensor
-        uint tsize = H * (C / H);
-        // 2d tensor
-        uint ttsize = H * (C / H) * (C / H);
-
-        // 1d
-        uint hsize = (C / H);
-        // 2d
-        uint hhsize = (C / H) * (C / H);
 
         
         const int stream_id = 0;

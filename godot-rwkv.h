@@ -39,7 +39,7 @@ class Agent : public Resource {
 	Agent() {
 	}
 
-	int add_context(String context) {
+	ulong add_context(String contexta) {
 		// assert that add_context_queue is empty
 		// assert that max_queued_tokens is 0
 		if (max_queued_tokens != 0 || add_context_queue != "" || busy) {
@@ -47,7 +47,7 @@ class Agent : public Resource {
 			return -1;
 		}
 
-		add_context_queue = std::string(context.utf8().get_data());
+		add_context_queue = std::string(contexta.utf8().get_data());
 		busy = true;
 		return 0;
 	}
@@ -56,7 +56,7 @@ class Agent : public Resource {
 		return busy;
 	}
 
-	void generate(int tokens){
+	void generate(ulong tokens){
 		max_queued_tokens = tokens;	
 	}
 
@@ -74,7 +74,7 @@ class Agent : public Resource {
 		}
 	}
 
-	void set_last_token(int token) {
+	void set_last_token(ulong token) {
 		last_token = token;
 	}
 
@@ -87,12 +87,12 @@ class Agent : public Resource {
 	}
 
 	// get last token
-	int get_last_token() {
+	ulong get_last_token() {
 		return last_token;
 	}
 
 	// get max queued tokens
-	int get_max_queued_tokens() {
+	ulong get_max_queued_tokens() {
 		return max_queued_tokens;
 	}
 
@@ -120,14 +120,14 @@ class GodotRWKV : public Resource {
 public:
 	RWKV* model = nullptr;
 	RWKVTokenizer* tokenizer = nullptr;
-	u_int64_t lastToken = 187;
-	int max_agents = 50;
+	ulong lastToken = 187;
+	ulong max_agents = 50;
 	std::vector<Agent*> agents = {};
 	GodotRWKV() {
 		
 	}
 
-	void loadModel(String path, int max_batch = 50) {
+	void loadModel(String path, ulong max_batch = 50) {
 		max_agents = max_batch;
 		// model.loadFile(std::string(path.utf8().get_data()));
 		model = new RWKV(std::string(path.utf8().get_data()), max_batch, 2);
@@ -145,7 +145,7 @@ public:
 			// do context processing
 			if (agents.size() > 0) {
 				std::vector<Agent*> toProcess = {};
-				for (int i = 0; i < agents.size(); i++) {
+				for (ulong i = 0; i < agents.size(); i++) {
 					if (agents[i]->add_context_queue != "") {
 						std::cout << "processing context" << std::endl;
 						auto tokens = tokenizer->encode(agents[i]->add_context_queue);
@@ -156,9 +156,9 @@ public:
 						auto maxBatchSeqSize = max_agents;
 
 						// process tokens in batches of maxBatchSeqSize
-						for (int oi = 0; oi < tokens.size(); oi += maxBatchSeqSize) {
-							auto tokensBatch = std::vector<long unsigned int>();
-							for (int j = oi; j < MIN(oi + maxBatchSeqSize, tokens.size()); j++) {
+						for (ulong oi = 0; oi < tokens.size(); oi += maxBatchSeqSize) {
+							auto tokensBatch = std::vector<ulong>();
+							for (ulong j = oi; j < MIN(oi + maxBatchSeqSize, tokens.size()); j++) {
 								tokensBatch.push_back(tokens[j]);
 							}
 							std::cout << "tokensBatch: " << oi << std::endl;
@@ -186,9 +186,9 @@ public:
 					}
 				}
 
-				std::vector<std::vector<long unsigned int>> tokens = {};
+				std::vector<std::vector<ulong>> tokens = {};
 
-				for (int i = 0; i < toProcess.size(); i++) {
+				for (ulong i = 0; i < toProcess.size(); i++) {
 					tokens.push_back({toProcess[i]->last_token});
 					model->set_state(toProcess[i]->state, i);
 				}
@@ -203,7 +203,7 @@ public:
 				// outputs.reshape({outputs.shape[0], ulong(pow(2, 16))});
 				std::cout << "outputs: " << outputs.shape[0] << ":" << outputs.shape[1] << ":" << outputs.shape[2] << std::endl;
 
-				for (int i = 0; i < toProcess.size(); i++) {
+				for (ulong i = 0; i < toProcess.size(); i++) {
 					auto out = outputs[i];
 					auto token = typical(out.data, toProcess[i]->temperature, toProcess[i]->tau);
 					toProcess[i]->last_token = token;
@@ -227,7 +227,7 @@ public:
 			return Variant(agent);
 		}
 
-		// error_print("max_agents reached");
+		// error_prulong("max_agents reached");
 	;
 	}
 	

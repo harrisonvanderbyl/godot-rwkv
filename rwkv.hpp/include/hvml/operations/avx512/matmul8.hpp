@@ -91,8 +91,6 @@ void dopartial(MatMulJob job) {
 	auto OUT = job.OUT;
 	auto Ao = job.Ao;
 	auto Ar = job.Ar;
-	auto Bt = job.Bt;
-	auto Ct = job.Ct;
 	auto bbt = job.bbt;
 	auto ii = job.ii;
 	#ifdef __AVX512F__ 
@@ -169,7 +167,6 @@ void dopartial(MatMulJob job) {
 
 void dopartialwkv5att(MatMulJob job) {
 	auto T = job.bbt;
-	auto B = job.ii;
 	auto CH = job.IN;
 	auto bb = job.OUT;
 	auto kk = job.Ao;

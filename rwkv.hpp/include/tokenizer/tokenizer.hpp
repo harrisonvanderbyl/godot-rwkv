@@ -26,7 +26,6 @@ public:
         std::ifstream file(fileName);
         std::string line;
         std::vector<std::vector<uchar>> sorted;
-        ulong lastintprog = 0;
         std::vector<std::string> filelines;
         while (std::getline(file, line)) {
             // get progress without changing the file position
@@ -45,7 +44,7 @@ public:
         std::cout << std::endl;
         
         
-        #pragma omp parallel for schedule(static, 1) shared(filelines, sorted, idx2token)
+        // #pragma omp parallel for schedule(static, 1) shared(filelines, sorted, idx2token)
         for (size_t io = 0; io < filelines.size(); io++) {
             
             //progress
@@ -99,14 +98,14 @@ public:
             }
             
             // sorted.push_back(x)
-            #pragma omp critical
+            // #pragma omp critical
             {
                 sorted.push_back(x);
             }
             
         
             // idx2token[idx] = x;
-            #pragma omp critical
+            // #pragma omp critical
             {
                 idx2token[idx] = x;
             }
