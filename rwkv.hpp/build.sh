@@ -21,7 +21,7 @@ fi
 
 # build with intel compiler
 # check if intel compiler installed
-if [ -z "$(icpx --version)" ]; then
+if [ "$(icpx --version)" ]; then
 source /opt/intel/oneapi/2024.0/oneapi-vars.sh 
 icpx -m64 ./rwkv.cpp -I ./include/ -o ./build/rwkv -march=native -std=c++17 $vulk -ffast-math -O3 -pthread
 
