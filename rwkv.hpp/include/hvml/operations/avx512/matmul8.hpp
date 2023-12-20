@@ -134,38 +134,27 @@ void dopartial(MatMulJob job) {
 
 			const auto IAIN = A + i * IN;
 
-			auto sum1 = SET1Q(0.0);
-			auto sum2 = SET1Q(0.0);
+			auto sum1 = SET1(0.0);
+			auto sum2 = SET1(0.0);
 			
-			for (uint32_t k = 0; k < IN; k += UINT8SIMDWIDTH) {
+			for (uint32_t k = 0; k < IN; k += 8) {
 				
 				auto u16_vec = vmovl_u8(vld1_u8((IAIN + k)));  
-				#if defined(__ARM_FP16_FORMAT_IEEE) || defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-					auto fp16inp = vcombine_f16(vcvt_f16_f32(Aoio+vld1q_f32(B + bbt * IN + k)), vcvt_f16_f32(Aoio+vld1q_f32(B + bbt * IN + k + 4)));
-					auto uint8fp16 = vcvtq_f16_u16(u16_vec);
-					sum1 = vaddq_f16(vmulq_f16(fp16inp,uint8fp16),sum1);
-					auto u16_vec2 = vmovl_u8(vld1_u8((IAIN + k + 8))); 
-					auto fp16inp2 = vcombine_f16(vcvt_f16_f32(Aoio+vld1q_f32(B + bbt * IN + k+8)), vcvt_f16_f32(Aoio+vld1q_f32(B + bbt * IN + k + 12)));
-					auto uint8fp162 = vcvtq_f16_u16(u16_vec2);
-					sum2 = vaddq_f16(vmulq_f16(fp16inp2,uint8fp162),sum2);
-
-				#elif
+				
 					// Convert uint8_t values to float32x4_t
-										// convert uint8_t to uint16_t
-					auto u32_low_vec = vcvtq_f32_u32(vmovl_u16(vget_low_u16(u16_vec)))+Aoio;   // Extract lower part and convert to uint32_t
-					auto u32_high_vec = vcvtq_f32_u32(vmovl_u16(vget_high_u16(u16_vec)))+Aoio; // Extract upper part and convert to uint32_t
-					// Load the input float vector
-					// Perform the multiplication with inp vector
-					sum1 = MULTADD(u32_low_vec, vld1q_f32(B + bbt * IN + k),sum1);
-					sum2 = MULTADD(u32_high_vec, vld1q_f32(B + bbt * IN + k + 4),sum2);
-
-				#endif
+									// convert uint8_t to uint16_t
+				auto u32_low_vec = vcvtq_f32_u32(vmovl_u16(vget_low_u16(u16_vec)))+Aoio;   // Extract lower part and convert to uint32_t
+				auto u32_high_vec = vcvtq_f32_u32(vmovl_u16(vget_high_u16(u16_vec)))+Aoio; // Extract upper part and convert to uint32_t
+				// Load the input float vector
+				// Perform the multiplication with inp vector
+				sum1 = MULTADD(u32_low_vec, vld1q_f32(B + bbt * IN + k),sum1);
+				sum2 = MULTADD(u32_high_vec, vld1q_f32(B + bbt * IN + k + 4),sum2);
 
 			}
 
 			sum1 = sum1+sum2;
 			
-			zz1[i&3]= REDUCEQ(sum1);
+			zz1[i&3]= REDUCE(sum1);
 			
 
 		}
