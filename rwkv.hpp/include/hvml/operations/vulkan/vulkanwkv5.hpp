@@ -34,7 +34,7 @@ void Tensor<float, HVMLVULKAN>::wkv5(Tensor<float,HVMLVULKAN> &r, Tensor<float,H
         
         const int stream_id = 0;
 
-        vuda::dim3 kernalparams = vuda::dim3(B, H, 1);
+        auto kernalparams = vuda::dim3(B, H, 1);
         vuda::launchKernel("./shaders/wkv5.glsl.spv", "main", stream_id, kernalparams, B, T, C, H, rr, kk, vv, ww, uu, this->data, out);
         
         

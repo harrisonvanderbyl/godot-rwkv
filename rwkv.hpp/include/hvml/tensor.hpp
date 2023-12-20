@@ -9,7 +9,27 @@
 
 #include "nlohmann/json.hpp"
 
-#include <vuda_runtime.hpp>
+
+// #include <vuda_runtime.hpp>
+// test if vulkan is enabled by seeing if <vulkan/vulkan.h> exists
+#if __has_include(<vulkan/vulkan.h>)
+    #include <vuda_runtime.hpp>
+    #define VULKAN_ENABLED
+#else
+    #pragma message("Vulkan library not found, not building with vulkan")
+    #define cudaGetErrorString(x) "error"
+    #define cudaMemcpy(...) "error"; throw std::runtime_error("Not built with vulkan");
+    #define cudaMalloc(...) "error"; throw std::runtime_error("Not built with vulkan");
+    #define cudaSuccess 0
+    #define cudaError_t int
+    #define cudaMallocManaged(x) "error"; throw std::runtime_error("Not built with vulkan");
+    #define cudaSetDevice(x) "error"; throw std::runtime_error("Not built with vulkan");
+    #define vuda 0;std
+    #define streamSynchronize cout << "error"; throw std::runtime_error("Not built with vulkan");
+    #define launchKernel(...) cout << "error"; throw std::runtime_error("Not built with vulkan");
+    #define dim3(...) cout << "error"; throw std::runtime_error("Not built with vulkan");
+    #define dim3 cout << "error"; 
+#endif
 
 #define ALIGNMENT 64
 
@@ -416,7 +436,7 @@ public:
     void multiply(Tensor<DataType> &tensor, Tensor<DataType> &result)
     {
         if (this->device.device_type.i == KHVMLCPU.i){
-// #pragma omp parallel for
+#pragma omp parallel for
         for (uint64_t i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(result.data + i, MULTIPLY(LOAD(this->data + i), LOAD(tensor.data + i)));
@@ -434,7 +454,7 @@ public:
     void multiply(float input, Tensor<DataType> &result)
     {
         if (this->device.device_type.i == KHVMLCPU.i){
-        // #pragma omp parallel for
+        #pragma omp parallel for
         for (uint64_t i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(result.data + i, MULTIPLY(LOAD(this->data + i), SET1(input)));
@@ -515,7 +535,7 @@ public:
 
         assert(OUT % BLOCKSIZE == 0);
 
-        vuda::dim3 kernalparams = vuda::dim3(BBT, OUT, 1);
+        auto kernalparams = vuda::dim3(BBT, OUT, 1);
         vuda::launchKernel("./shaders/matmul.glsl.spv", "main", stream_id, kernalparams, BBT,IN,OUT, BLOCKSIZE, B, A, C);
         
         vuda::streamSynchronize(stream_id);
@@ -556,7 +576,7 @@ public:
 
         
 
-        vuda::dim3 kernalparams = vuda::dim3(BBT, OUT/(32), IN/(32));
+        auto kernalparams = vuda::dim3(BBT, OUT/(32), IN/(32));
         vuda::launchKernel("./shaders/matmul8.glsl.spv", "main", stream_id, kernalparams, BBT,IN,OUT, BLOCKSIZE, B, A, Ar, Ao, C);
         
         vuda::streamSynchronize(stream_id);
@@ -676,6 +696,7 @@ public:
     DataType sum()
     {
         DataType sum = 0;
+        // #pragma omp parallel for
         for (int i = 0; i < this->data_size_in_elements; i++)
         {
             sum += this->data[i];
@@ -745,6 +766,7 @@ public:
         // Parallel computation
         // #pragma omp parallel for collapse(2) schedule(dynamic, 32) shared(A, B)
         if(buffer.device.device_type.i == KHVMLCPU.i){
+        // #pragma omp parallel for
         for (u_int64_t i = 0; i < BATCH; i += 1)
         {
 
@@ -797,6 +819,7 @@ public:
         assert(devicemap % 4 == 0); // assert all tensors are on the same device
         // std::cout << "devicemap: " << devicemap << std::endl;
         if (this->device.device_type.i == KHVMLCPU.i){
+            // #pragma omp parallel for
             for (uint64_t i = 0; i < BTT; i += 1)
             {
                 float mean = 0.0f;
@@ -836,7 +859,7 @@ public:
 
             assert(OUT % BLOCKSIZE == 0);
 
-            vuda::dim3 kernalparams = vuda::dim3(BTT, 1, 1);
+            auto kernalparams = vuda::dim3(BTT, 1, 1);
             vuda::launchKernel("./shaders/layernorm.glsl.spv", "main", stream_id, kernalparams, BTT,OUT, BLOCKSIZE, A, W, B, C);
             
             vuda::streamSynchronize(stream_id);
@@ -873,7 +896,7 @@ public:
 
             const int entries = result.data_size_in_elements;
 
-            vuda::dim3 kernalparams = vuda::dim3(entries/BLOCKSIZE, 1, 1);
+            auto kernalparams = vuda::dim3(entries/BLOCKSIZE, 1, 1);
             vuda::launchKernel("./shaders/lerp.glsl.spv", "main", stream_id, kernalparams, entries, BLOCKSIZE, IN, this->data, B, A, C);
             
             vuda::streamSynchronize(stream_id);
@@ -979,7 +1002,7 @@ if (this->device.device_type.i == KHVMLCPU.i){
 
         // std::cout << "result.sigmoid.data_size_in_elements: " << result.data_size_in_elements << std::endl;
 if (this->device.device_type.i == KHVMLCPU.i){
-// #pragma omp parallel for schedule(static, 32)
+// #pragma omp parallel for
         for (uint64_t i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(C + i,DIVIDE(LOAD(B+i), ADD(SET1(1.0f), EXP(MULTIPLY(SET1(-1.0f), LOAD(A + i))))));
@@ -1006,7 +1029,7 @@ if (this->device.device_type.i == KHVMLCPU.i){
 
         // std::cout << "result.sigmoid.data_size_in_elements: " << result.data_size_in_elements << std::endl;
 if (this->device.device_type.i == KHVMLCPU.i){
-// #pragma omp parallel for schedule(static, 32)
+// #pragma omp parallel for
         for (uint64_t i = 0; i < this->data_size_in_elements; i += SIMD_WIDTH)
         {
             STORE(C + i,DIVIDE(MULTIPLY(LOAD(B+i),LOAD(A + i)), ADD(SET1(1.0f), EXP(MULTIPLY(SET1(-1.0f), LOAD(A + i))))));

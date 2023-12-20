@@ -4,13 +4,25 @@
 #include "rwkv.hpp"
 #include "sampler/sample.hpp"
 #include "tokenizer/tokenizer.hpp"
-int main(){
+int main( int argc, char** argv ){
+
     std::cout << "Hello World" << std::endl;
     std::string path = "./model.safetensors";
+
+    if (argc > 1)
+    {
+        path = argv[1];
+    }
 
     RWKVTokenizer worldTokenizer("rwkv_vocab_v20230424.txt");
     
     auto tokens = worldTokenizer.encode("### Instruction: please create a long harry potter fanfiction. \n\n### Response:");
+
+    if (argc > 2)
+    {
+        std::string input = argv[2];
+        tokens = worldTokenizer.encode(input);
+    }
     
     std::cout << worldTokenizer.decode(tokens) << std::endl;
     std::cout << "Loading model" << std::endl;

@@ -1,7 +1,7 @@
 #ifndef HVMLAVX512MAT8_CPP
 #define HVMLAVX512MAT8_CPP
 #include "hvml/tensor.hpp"
-
+#include <atomic>
 // include threads
 #include <thread>
 
@@ -141,12 +141,12 @@ void dopartial(MatMulJob job) {
 				
 				auto u16_vec = vmovl_u8(vld1_u8((IAIN + k)));  
 				#if defined(__ARM_FP16_FORMAT_IEEE) || defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-					auto fp16inp = vcombine_f16(vcvt_f16_f32(vld1q_f32(B + bbt * IN + k)), vcvt_f16_f32(vld1q_f32(B + bbt * IN + k + 4)));
-					auto uint8fp16 = float16_t(Aoio)+vcvtq_f16_u16(u16_vec);
+					auto fp16inp = vcombine_f16(vcvt_f16_f32(Aoio+vld1q_f32(B + bbt * IN + k)), vcvt_f16_f32(Aoio+vld1q_f32(B + bbt * IN + k + 4)));
+					auto uint8fp16 = vcvtq_f16_u16(u16_vec);
 					sum1 = vaddq_f16(vmulq_f16(fp16inp,uint8fp16),sum1);
 					auto u16_vec2 = vmovl_u8(vld1_u8((IAIN + k + 8))); 
-					auto fp16inp2 = vcombine_f16(vcvt_f16_f32(vld1q_f32(B + bbt * IN + k+8)), vcvt_f16_f32(vld1q_f32(B + bbt * IN + k + 12)));
-					auto uint8fp162 = float16_t(Aoio)+vcvtq_f16_u16(u16_vec2);
+					auto fp16inp2 = vcombine_f16(vcvt_f16_f32(Aoio+vld1q_f32(B + bbt * IN + k+8)), vcvt_f16_f32(Aoio+vld1q_f32(B + bbt * IN + k + 12)));
+					auto uint8fp162 = vcvtq_f16_u16(u16_vec2);
 					sum2 = vaddq_f16(vmulq_f16(fp16inp2,uint8fp162),sum2);
 
 				#elif
