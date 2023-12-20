@@ -21,14 +21,14 @@ fi
 
 # build with intel compiler
 # check if intel compiler installed
-if [ -z "$(command -v icpx)" ]; then
+if [ -z "$(icpx --version)" ]; then
 source /opt/intel/oneapi/2024.0/oneapi-vars.sh 
 icpx -m64 ./rwkv.cpp -I ./include/ -o ./build/rwkv -march=native -std=c++17 $vulk -ffast-math -O3 -pthread
 
 else
 # build with g++
 #check if g++ installed, use clang++ if g++ not installed
-if [ -z "$(command -v g++)" ]; then
+if [ -z "$(g++ --version)" ]; then
     echo "g++ not installed, using clang++"
     clang++ -m64 ./rwkv.cpp -I ./include/ -o ./build/rwkv -march=native -std=c++17 $vulk -ffast-math -O3 -pthread
 else
