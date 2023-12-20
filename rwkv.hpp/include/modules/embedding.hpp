@@ -31,7 +31,7 @@ class Embedding
         }
 
         void toVulkan(){
-            this->vkbuffer = Tensor<float>({this->buffer.shape[0], this->buffer.shape[1], this->buffer.shape[2]},0.0);
+            this->vkbuffer = Tensor<float>({this->buffer.shape[0], this->buffer.shape[1], this->buffer.shape[2]},0.0f);
             this->vkbuffer.sendToVulkan();
 
         }

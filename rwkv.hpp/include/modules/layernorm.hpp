@@ -51,7 +51,7 @@ class GroupNorm
             ulong CC = this->weight.shape[1];
             // std::cout << "GroupNorm:" << this->weight.shape[0] << std::endl;
             
-            this->buffer = Tensor<float>({max_batch, max_seq, head, CC },0.0);
+            this->buffer = Tensor<float>({max_batch, max_seq, head, CC },0.0f);
             // std::cout << "GroupNorm:" << max_batch << std::endl;
 
 

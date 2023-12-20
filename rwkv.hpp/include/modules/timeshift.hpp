@@ -19,10 +19,10 @@ class TimeShift
 
         TimeShift(const ulong max_batchi, const ulong max_seqi, const ulong dimsi){
             std::vector<uint64_t> size = {max_batchi, max_seqi, dimsi};
-            this->buffer = Tensor<float>(size,0.0);
+            this->buffer = Tensor<float>(size,0.0f);
             std::vector<uint64_t> state_size = {max_batchi, 1UL, dimsi};
             // std::cout << "TimeShift:" << state_size[0] << std::endl;
-            this->state = Tensor<float>(state_size,0.0);
+            this->state = Tensor<float>(state_size,0.0f);
             
             this->max_batch = max_batchi;
             this->max_seq = max_seqi;

@@ -111,7 +111,7 @@ class Linear
                 }
                 else{
                     auto mbuff = Tensor<float>({input.shape[0], input.shape[1], this->weight.shape[0]},
-                        0.0);
+                        0.0f);
                     if(this->isbf16){
                         // ((Tensor<bfloat16>*)(&this->weight))->matmul(input, mbuff, true);
                     }
@@ -148,7 +148,7 @@ class Linear
                 ((Tensor<float>*)&this->weight)->sendToVulkan();
             }
 
-            this->vkbuffer = Tensor<float>({this->batch_size, this->seq_len, this->hidden_size}, 0.0);
+            this->vkbuffer = Tensor<float>({this->batch_size, this->seq_len, this->hidden_size}, 0.0f);
             this->vkbuffer.sendToVulkan();
 
             this->onGPU = true;
