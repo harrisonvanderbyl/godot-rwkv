@@ -95,31 +95,87 @@ void dopartial(MatMulJob job) {
 	auto Ct = job.Ct;
 	auto bbt = job.bbt;
 	auto ii = job.ii;
+	#ifdef __AVX512F__ 
+		const auto Ario = _mm512_load_ps(Ar + ii);
+		const auto Aoioo = _mm512_div_ps(_mm512_load_ps(Ao + ii), Ario);
+		__m512 zz = _mm512_setzero_ps();
+		for (uint32_t i = ii; i < ii + 16; i += 1) {
+			const float Aoio = Aoioo[i & 15];
 
-	const auto Ario = _mm512_load_ps(Ar + ii);
-	const auto Aoioo = _mm512_div_ps(_mm512_load_ps(Ao + ii), Ario);
-	__m512 zz = _mm512_setzero_ps();
-	for (uint32_t i = ii; i < ii + 16; i += 1) {
-		const float Aoio = Aoioo[i & 15];
+			__m512 aa = _mm512_setzero_ps();
+			const auto IAIN = A + i * IN;
+			for (uint32_t k = 0; k < IN; k += 32) {
+				const __m512 b01 = _mm512_load_ps(B + bbt * IN + k + 16);
+				const __m512 b00 = _mm512_load_ps(B + bbt * IN + k);
 
-		__m512 aa = _mm512_setzero_ps();
-		const auto IAIN = A + i * IN;
-		for (uint32_t k = 0; k < IN; k += 32) {
-			const __m512 b01 = _mm512_load_ps(B + bbt * IN + k + 16);
-			const __m512 b00 = _mm512_load_ps(B + bbt * IN + k);
+				const __m512 a00 = Aoio + _mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(*((__m128i *)(IAIN + k))));
+				const __m512 a01 = Aoio + _mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(*((__m128i *)(IAIN + k + 16))));
 
-			const __m512 a00 = Aoio + _mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(*((__m128i *)(IAIN + k))));
-			const __m512 a01 = Aoio + _mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(*((__m128i *)(IAIN + k + 16))));
-
-			// aa = _mm512_dpbf16_ps(aa, _mm512_cvtne2ps_pbh(a00, a01), _mm512_cvtne2ps_pbh(b00, b01));
-			aa = _mm512_fmadd_ps(a00, b00, aa);
-			aa = _mm512_fmadd_ps(a01, b01, aa);
+				// aa = _mm512_dpbf16_ps(aa, _mm512_cvtne2ps_pbh(a00, a01), _mm512_cvtne2ps_pbh(b00, b01));
+				aa = _mm512_fmadd_ps(a00, b00, aa);
+				aa = _mm512_fmadd_ps(a01, b01, aa);
+			}
+			zz[i & 15] = _mm512_reduce_add_ps(aa);
 		}
-		zz[i & 15] = _mm512_reduce_add_ps(aa);
-	}
-	_mm512_store_ps(
-			(void *)(C + bbt * OUT + ii),
-			zz * Ario);
+		_mm512_store_ps(
+				(void *)(C + bbt * OUT + ii),
+				zz * Ario);
+	#endif
+
+	#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+	 	for (ulong b = 0; b < 16; b+= 4){
+		const auto Ario1 = LOAD(Ar + ii+b);
+		const auto Aoio1 = DIVIDE(LOAD(Ao + ii + b),Ario1);
+
+		auto zz1 = SET1(0.0);
+
+		for (uint32_t i = ii+b; i < ii + b+4; i += 1) {
+			auto Aoio = Aoio1[i&3];
+
+			const auto IAIN = A + i * IN;
+
+			auto sum1 = SET1Q(0.0);
+			auto sum2 = SET1Q(0.0);
+			
+			for (uint32_t k = 0; k < IN; k += UINT8SIMDWIDTH) {
+				
+				auto u16_vec = vmovl_u8(vld1_u8((IAIN + k)));  
+				#if defined(__ARM_FP16_FORMAT_IEEE) || defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+					auto fp16inp = vcombine_f16(vcvt_f16_f32(vld1q_f32(B + bbt * IN + k)), vcvt_f16_f32(vld1q_f32(B + bbt * IN + k + 4)));
+					auto uint8fp16 = float16_t(Aoio)+vcvtq_f16_u16(u16_vec);
+					sum1 = vaddq_f16(vmulq_f16(fp16inp,uint8fp16),sum1);
+					auto u16_vec2 = vmovl_u8(vld1_u8((IAIN + k + 8))); 
+					auto fp16inp2 = vcombine_f16(vcvt_f16_f32(vld1q_f32(B + bbt * IN + k+8)), vcvt_f16_f32(vld1q_f32(B + bbt * IN + k + 12)));
+					auto uint8fp162 = float16_t(Aoio)+vcvtq_f16_u16(u16_vec2);
+					sum2 = vaddq_f16(vmulq_f16(fp16inp2,uint8fp162),sum2);
+
+				#elif
+					// Convert uint8_t values to float32x4_t
+										// convert uint8_t to uint16_t
+					auto u32_low_vec = vcvtq_f32_u32(vmovl_u16(vget_low_u16(u16_vec)))+Aoio;   // Extract lower part and convert to uint32_t
+					auto u32_high_vec = vcvtq_f32_u32(vmovl_u16(vget_high_u16(u16_vec)))+Aoio; // Extract upper part and convert to uint32_t
+					// Load the input float vector
+					// Perform the multiplication with inp vector
+					sum1 = MULTADD(u32_low_vec, vld1q_f32(B + bbt * IN + k),sum1);
+					sum2 = MULTADD(u32_high_vec, vld1q_f32(B + bbt * IN + k + 4),sum2);
+
+				#endif
+
+			}
+
+			sum1 = sum1+sum2;
+			
+			zz1[i&3]= REDUCEQ(sum1);
+			
+
+		}
+
+		
+		STORE(
+				(void *)(C + bbt * OUT + ii + b),
+				zz1 * Ario1);
+		}
+	#endif
 }
 
 void dopartialwkv5att(MatMulJob job) {
@@ -298,6 +354,7 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				(outlayer[4] <= OUT) || (outlayer[5] <= OUT) || (outlayer[6] <= OUT) || (outlayer[7] <= OUT) ||
 				(outlayer[8] <= OUT) || (outlayer[9] <= OUT) || (outlayer[10] <= OUT) || (outlayer[11] <= OUT) ||
 				(outlayer[12] <= OUT) || (outlayer[13] <= OUT) || (outlayer[14] <= OUT) || (outlayer[15] <= OUT)) {
+			
 			if (outlayer[0] < OUT) {
 				auto cmp = 0UL;
 				if (jobs10.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[0], IN, OUT })) {

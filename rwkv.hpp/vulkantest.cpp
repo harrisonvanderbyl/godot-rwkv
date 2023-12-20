@@ -64,23 +64,22 @@ int main() {
   // aai.matmul(aar, aao, input, output);
   aai.matmul(aar, aao, input, output);
 
+  std::cout << output << std::endl;
+
   // std::cout << output << std::endl;
   // start timer 
     auto start = std::chrono::high_resolution_clock::now(); 
     for (int i = 0; i < 100; i++)
     {
         aai.matmul(aar, aao, input, output);
-        aai.matmul(aar, aao, input, output2);
-        aai.matmul(aar, aao, input, output3);
-        aai.matmul(aar, aao, input, output4);
     }
-    // stop timer
+  //   // stop timer
     auto stop = std::chrono::high_resolution_clock::now();
 
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
     std::cout << "CPU1x4: " << duration.count() << std::endl;
 
-  std::cout << output3 << std::endl;
+  // std::cout << output3 << std::endl;
 
     // matmul(aai,aar, aao, input, output,aai,aar, aao, input, output,aai,aar, aao, input, output,aai,aar, aao, input, output);
 
@@ -90,10 +89,10 @@ int main() {
     // stop timer
     // stop = std::chrono::high_resolution_clock::now();
 
-    duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    std::cout << "CPU-4: " << duration.count() << std::endl;
+  //   duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+  //   std::cout << "CPU-4: " << duration.count() << std::endl;
 
-  std::cout << outputa3 << std::endl;
+  // std::cout << outputa3 << std::endl;
 
   // auto deviceProp = cudaDeviceProp();
   // cudaGetDeviceProperties(&deviceProp, 0);

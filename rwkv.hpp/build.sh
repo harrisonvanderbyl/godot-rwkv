@@ -7,8 +7,14 @@ mkdir -p ./build/
 
 # bf16 support (assuming bf16 support is enabled on this machine)
 # intel 
-source /opt/intel/oneapi/2024.0/oneapi-vars.sh 
-icpx -m64 ./rwkv.cpp -I ./include/ -o ./build/rwkv -march=native -std=c++17 -lvulkan -ffast-math -O3
+
+
+# source /opt/intel/oneapi/2024.0/oneapi-vars.sh 
+g++ -m64 ./rwkv.cpp -I ./include/ -o ./build/rwkv -march=native -std=c++17 -lvulkan -ffast-math -O3
+
+# COMPILE FOR ARM
+# g++ -m64 ./rwkv.cpp -I ./include/ -o ./build/rwkv -mcpu=native -std=c++17 -lvulkan -ffast-math -O3
+
 # g++ -m64 ./rwkv.cpp -I ./include/ -o ./build/rwkv -g -march=native -O3 -std=c++17 -lvulkan
 
 # no avx512 support

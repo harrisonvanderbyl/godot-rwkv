@@ -20,7 +20,21 @@
 #define MAX(x, y) _mm512_max_ps(x, y)
 #define SIMDTYPE __m512
 
-#define EXP(x) _mm512_exp_ps(x)
+// check if intel compiler is used
+// #ifdef __INTEL_COMPILER
+// #define EXP(x) _mm512_exp_ps(x)
+// #else
+#define EXP(x) exp_ps_fill(x)
+SIMDTYPE exp_ps_fill(SIMDTYPE x)
+{
+    SIMDTYPE result = SET1(0.0f);
+    for (int i = 0; i < SIMD_WIDTH; i++)
+    {
+        result[i] = pow(M_E, x[i]);
+    }
+    return result;
+}
+// #endif
 
 #define DIVIDE(x, y) _mm512_div_ps(x, y)
 
@@ -113,8 +127,9 @@ SIMDTYPE exp_ps_fill(SIMDTYPE x)
 #define UINT8THREADALLOC 1
 #define SIMD_WIDTH 4 // NEON typically operates on 128-bit registers (4 floats)
 #define LOAD(x) vld1q_f32(x)
-#define STORE(x, y) vst1q_f32(x, y)
+#define STORE(x, y) vst1q_f32((float*)x, y)
 #define SET1(x) vdupq_n_f32(x)
+#define SET1Q(x) vdupq_n_f32(x)
 #define MULTIPLY(x, y) vmulq_f32(x, y)
 #define MULTADD(x, y, z) vmlaq_f32(z, x, y)
 #define REDUCE(x) x[0] + x[1] + x[2] + x[3]
@@ -162,54 +177,57 @@ inline void *aligned_alloc(size_t alignment, size_t size)
 #endif
 
 #define UINT8SIMDWIDTH 8
-#define UINT8POSTREDUCE(x) (float)(x)
-#define UINT8MULTADD(offset, scale, u8, inp, acc, lane) uint8dotproduct(offset, scale, u8, inp, acc, lane)
-
+// #define UINT8POSTREDUCE(x) (float)(x)
+// #define UINT8MULTADD(offset, scale, u8, inp, acc, lane) uint8dotproduct(offset, scale, u8, inp, acc, lane)
+#define REDUCEQ(x) x[0]+x[1]+x[2]+x[3]
 #if defined(__ARM_FP16_FORMAT_IEEE) || defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-#define PREPROCESSFLOATINPUTUINT8(inp) vcombine_f16(vcvt_f16_f32(vld1q_f32(inp)), vcvt_f16_f32(vld1q_f32(inp + 4)))
-#define PREPROCESSFLOATPARAMSUINT8(inp) vcombine_f16(vcvt_f16_f32(vld1q_f32(inp)), vcvt_f16_f32(vld1q_f32(inp + 4)))
-#define UINT8ACC (float16_t)0.0f;
+#define SET1Q(x) vdupq_n_f16(x)
+#define UINT8SIMDWIDTH 16
+#define REDUCEQ(x) x[0]+x[1]+x[2]+x[3]+x[4]+x[5]+x[6]+x[7]
+// #define PREPROCESSFLOATINPUTUINT8(inp) vcombine_f16(vcvt_f16_f32(vld1q_f32(inp)), vcvt_f16_f32(vld1q_f32(inp + 4)))
+// #define PREPROCESSFLOATPARAMSUINT8(inp) vcombine_f16(vcvt_f16_f32(vld1q_f32(inp)), vcvt_f16_f32(vld1q_f32(inp + 4)))
+// #define UINT8ACC (float16_t)0.0f;
 
-float uint8dotproduct(float16x8_t offset_vec, float16x8_t scale_vec, uint8_t *u8, float16x8_t inp, float16_t acc, int lane)
-{
+// float uint8dotproduct(float16x8_t offset_vec, float16x8_t scale_vec, uint8_t *u8, float16x8_t inp, float16_t acc, int lane)
+// {
 
-    // Apply scale and offset to the float16 vectors
-    auto mulp = vmulq_f16(inp, vaddq_f16(vmulq_laneq_f16(vcvtq_f16_u16(vmovl_u8(vld1_u8(u8))), scale_vec, lane), vdupq_laneq_f16(offset_vec, lane)));
+//     // Apply scale and offset to the float16 vectors
+//     auto mulp = vmulq_f16(inp, vaddq_f16(vmulq_laneq_f16(vcvtq_f16_u16(vmovl_u8(vld1_u8(u8))), scale_vec, lane), vdupq_laneq_f16(offset_vec, lane)));
 
-    return acc + mulp[0] + mulp[1] + mulp[2] + mulp[3] + mulp[4] + mulp[5] + mulp[6] + mulp[7];
-}
+//     return acc + mulp[0] + mulp[1] + mulp[2] + mulp[3] + mulp[4] + mulp[5] + mulp[6] + mulp[7];
+// }
 #pragma message("ARM NEON FP16 is supported")
 #else
 #pragma message("ARM NEON FP16 is not supported")
-#define PREPROCESSFLOATINPUTUINT8(inp) inp
-#define PREPROCESSFLOATPARAMSUINT8(inp) inp
-#define UINT8ACC 0.0f;
+// #define PREPROCESSFLOATINPUTUINT8(inp) inp
+// #define PREPROCESSFLOATPARAMSUINT8(inp) inp
+// #define UINT8ACC 0.0f;
 
-float uint8dotproduct(float *offset, float *scale, uint8_t *u8, float *inp, float acc, int lane)
-{
-    // Load the uint8_t data into a vector
-    uint8x8_t u8_vec = vld1_u8(u8);
+// float uint8dotproduct(float *offset, float *scale, uint8_t *u8, float *inp, float acc, int lane)
+// {
+//     // Load the uint8_t data into a vector
+//     uint8x8_t u8_vec = vld1_u8(u8);
 
-    // Convert uint8_t values to float32x4_t
-    uint16x8_t u16_vec = vmovl_u8(u8_vec);                       // convert uint8_t to uint16_t
-    uint32x4_t u32_low_vec = vmovl_u16(vget_low_u16(u16_vec));   // Extract lower part and convert to uint32_t
-    uint32x4_t u32_high_vec = vmovl_u16(vget_high_u16(u16_vec)); // Extract upper part and convert to uint32_t
+//     // Convert uint8_t values to float32x4_t
+//     uint16x8_t u16_vec = vmovl_u8(u8_vec);                       // convert uint8_t to uint16_t
+//     uint32x4_t u32_low_vec = vmovl_u16(vget_low_u16(u16_vec));   // Extract lower part and convert to uint32_t
+//     uint32x4_t u32_high_vec = vmovl_u16(vget_high_u16(u16_vec)); // Extract upper part and convert to uint32_t
 
-    // Apply scale and offset to the float vectors
-    float32x4_t offset_vec = vdupq_n_f32(offset[lane]); // Create a vector of the offset
-    float32x4_t scale_vec = vdupq_n_f32(scale[lane]);   // Create a vector of the scale
+//     // Apply scale and offset to the float vectors
+//     float32x4_t offset_vec = vdupq_n_f32(offset[lane]); // Create a vector of the offset
+//     float32x4_t scale_vec = vdupq_n_f32(scale[lane]);   // Create a vector of the scale
 
-    // Load the input float vector
-    // Perform the multiplication with inp vector
-    float32x4_t float_low_vec = vmulq_f32(vmlaq_f32(offset_vec, vcvtq_f32_u32(u32_low_vec), scale_vec), vld1q_f32(inp));
-    float32x4_t float_high_vec = vmulq_f32(vmlaq_f32(offset_vec, vcvtq_f32_u32(u32_high_vec), scale_vec), vld1q_f32(inp + 4));
+//     // Load the input float vector
+//     // Perform the multiplication with inp vector
+//     float32x4_t float_low_vec = vmulq_f32(vmlaq_f32(offset_vec, vcvtq_f32_u32(u32_low_vec), scale_vec), vld1q_f32(inp));
+//     float32x4_t float_high_vec = vmulq_f32(vmlaq_f32(offset_vec, vcvtq_f32_u32(u32_high_vec), scale_vec), vld1q_f32(inp + 4));
 
-    // Pairwise add the lower and upper parts
+//     // Pairwise add the lower and upper parts
 
-    // Add to the accumulator
+//     // Add to the accumulator
 
-    return acc + float_low_vec[0] + float_low_vec[1] + float_low_vec[2] + float_low_vec[3] + float_high_vec[0] + float_high_vec[1] + float_high_vec[2] + float_high_vec[3];
-}
+//     return acc + float_low_vec[0] + float_low_vec[1] + float_low_vec[2] + float_low_vec[3] + float_high_vec[0] + float_high_vec[1] + float_high_vec[2] + float_high_vec[3];
+// }
 #endif
 
 // Print out the SIMD width
