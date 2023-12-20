@@ -31,6 +31,7 @@ if(env["PLATFORM"] != "win32"):
     
     # add ./rwkv.hpp/include to include path
     # get current file location
+    __file__ = env_rwkv.File('./SCsub').abspath
     path = os.path.dirname(os.path.abspath(__file__))
     env_rwkv.Append(CPPPATH=[path + "/rwkv.hpp/include"])
 
@@ -39,7 +40,8 @@ else:
     env_rwkv.Append(CCFLAGS=['/EHsc'])
     
     # add ./rwkv.hpp/include to include path
-    # get current file location
+    # get current file location in scope of scons
+    __file__ = env_rwkv.File('./SCsub').abspath
     path = os.path.dirname(os.path.abspath(__file__))
     env_rwkv.Append(CPPPATH=[path + "/rwkv.hpp/include"])
     
