@@ -4,16 +4,13 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/include",
-                // vulkan
-                "/usr/include/vulkan",
+                "${workspaceFolder}/include"
             ],
             "defines": [],
-            // intel icpx
-            "compilerPath": "/opt/intel/oneapi/2024.0/bin/icpx",
+            "compilerPath": "/usr/bin/g++",
             "cStandard": "c17",
             "cppStandard": "c++20",
-            "intelliSenseMode": "intel-icpx",
+            "intelliSenseMode": "linux-clang-x64",
             // -march=native  -O3 -std=c++17 -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL
             "compilerArgs": [
                 // avx512 and bf16 (assuming current CPU supports it)
@@ -22,12 +19,13 @@
                 // "-march=skylake-avx512",
                 // avx2 (no accumulation?)
                 // "-march=haswell",
-                // arm
-                // "-march=aarch64",
                 "-O3",
                 "-std=c++17",
-                // vulkan
-
+                "-fopenmp",
+                "-flto",
+                "-fopenmp",
+                "-funroll-loops",
+                "-D_GLIBCXX_PARALLEL"
             ]
         }
     ],

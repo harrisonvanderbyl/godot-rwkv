@@ -5,6 +5,8 @@
 // include threads
 #include <thread>
 
+
+ulong ZeroLong = ulong(0);
 // create 8 threads
 // each thread does 1/8 of the work
 // first, lets create a global variable to hold the threads
@@ -61,26 +63,6 @@ std::atomic<ulong> jobs40 = 0;
 std::atomic<ulong> jobs41 = 0;
 std::atomic<ulong> jobs42 = 0;
 std::atomic<ulong> jobs43 = 0;
-
-std::atomic<bool> jobs10done = false;
-std::atomic<bool> jobs11done = false;
-std::atomic<bool> jobs12done = false;
-std::atomic<bool> jobs13done = false;
-
-std::atomic<bool> jobs20done = false;
-std::atomic<bool> jobs21done = false;
-std::atomic<bool> jobs22done = false;
-std::atomic<bool> jobs23done = false;
-
-std::atomic<bool> jobs30done = false;
-std::atomic<bool> jobs31done = false;
-std::atomic<bool> jobs32done = false;
-std::atomic<bool> jobs33done = false;
-
-std::atomic<bool> jobs40done = false;
-std::atomic<bool> jobs41done = false;
-std::atomic<bool> jobs42done = false;
-std::atomic<bool> jobs43done = false;
 
 void dopartial(MatMulJob job) {
 	// do the work
@@ -281,7 +263,7 @@ void dopartialwkv5att(MatMulJob job) {
 	}
 }
 
-void listen(std::atomic<ulong> *jobs1, std::atomic<bool> *jobs1done, std::atomic<ulong> *jobs2, std::atomic<bool> *jobs2done) {
+void listenfunc(std::atomic<ulong> *jobs1, std::atomic<ulong> *jobs2) {
 	// wait for all jobs to be done
 	while (true) {
 		// check if all jobs are done
@@ -293,13 +275,10 @@ void listen(std::atomic<ulong> *jobs1, std::atomic<bool> *jobs1done, std::atomic
 
 			if (current.type == JOBTYPE::RWKV_ATT) {
 				dopartialwkv5att(current);
-				jobs1->store(0UL);
+				jobs1->store(ZeroLong);
 			} else {
 				dopartial(current);
-				jobs1->store(0UL);
-				if (current.ii + 16 * 16 >= (current.OUT)) {
-					jobs1done[0] = true;
-				}
+				jobs1->store(ZeroLong);
 			}
 		}
 		const auto current2 = jobs2->load();
@@ -308,9 +287,7 @@ void listen(std::atomic<ulong> *jobs1, std::atomic<bool> *jobs1done, std::atomic
 
 			dopartial(current);
 			jobs2->store(0);
-			if ((current).ii + 16 * 16 >= (current).OUT) {
-				jobs2done[0] = true;
-			}
+			
 		}
 	}
 }
@@ -326,14 +303,14 @@ void startWorkers() {
 
 	std::cout << "Starting workers" << std::endl;
 
-	t1 = new std::thread(listen, &jobs10, &jobs10done, &jobs11, &jobs11done);
-	t2 = new std::thread(listen, &jobs12, &jobs12done, &jobs13, &jobs13done);
-	t3 = new std::thread(listen, &jobs20, &jobs20done, &jobs21, &jobs21done);
-	t4 = new std::thread(listen, &jobs22, &jobs22done, &jobs23, &jobs23done);
-	t5 = new std::thread(listen, &jobs30, &jobs30done, &jobs31, &jobs31done);
-	t6 = new std::thread(listen, &jobs32, &jobs32done, &jobs33, &jobs33done);
-	t7 = new std::thread(listen, &jobs40, &jobs40done, &jobs41, &jobs41done);
-	t8 = new std::thread(listen, &jobs42, &jobs42done, &jobs43, &jobs43done);
+	t1 = new std::thread(listenfunc, &jobs10, &jobs11);
+	t2 = new std::thread(listenfunc, &jobs12, &jobs13);
+	t3 = new std::thread(listenfunc, &jobs20, &jobs21);
+	t4 = new std::thread(listenfunc, &jobs22, &jobs23);
+	t5 = new std::thread(listenfunc, &jobs30, &jobs31);
+	t6 = new std::thread(listenfunc, &jobs32, &jobs33);
+	t7 = new std::thread(listenfunc, &jobs40, &jobs41);
+	t8 = new std::thread(listenfunc, &jobs42, &jobs43);
 	std::cout << "Started workers" << std::endl;
 }
 
@@ -359,203 +336,183 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 			0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0
 		};
-		jobs10done = false;
-		jobs11done = false;
-		jobs12done = false;
-		jobs13done = false;
-
-		jobs20done = false;
-		jobs21done = false;
-		jobs22done = false;
-		jobs23done = false;
-
-		jobs30done = false;
-		jobs31done = false;
-		jobs32done = false;
-		jobs33done = false;
-
-		jobs40done = false;
-		jobs41done = false;
-		jobs42done = false;
-		jobs43done = false;
-
 		while ((outlayer[0] <= OUT) || (outlayer[1] <= OUT) || (outlayer[2] <= OUT) || (outlayer[3] <= OUT) ||
 				(outlayer[4] <= OUT) || (outlayer[5] <= OUT) || (outlayer[6] <= OUT) || (outlayer[7] <= OUT) ||
 				(outlayer[8] <= OUT) || (outlayer[9] <= OUT) || (outlayer[10] <= OUT) || (outlayer[11] <= OUT) ||
 				(outlayer[12] <= OUT) || (outlayer[13] <= OUT) || (outlayer[14] <= OUT) || (outlayer[15] <= OUT)) {
 			
 			if (outlayer[0] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs10.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[0], IN, OUT })) {
 					outlayer[0] += 16 * 16;
 				}
 			} else {
-				if (jobs10done) {
+				if (jobs10 == ZeroLong) {
 					outlayer[0] += 16 * 16;
 				}
 			}
 
 			if (outlayer[1] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs11.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[1] + 16, IN, OUT })) {
 					outlayer[1] += 16 * 16;
 				}
 			} else {
-				if (jobs11done) {
+				if (jobs11 == ZeroLong) {
 					outlayer[1] += 16 * 16;
 				}
 			}
 
 			if (outlayer[2] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs12.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[2] + 32, IN, OUT })) {
 					outlayer[2] += 16 * 16;
 				}
 			} else {
-				if (jobs12done) {
+				if (jobs12 == ZeroLong) {
 					outlayer[2] += 16 * 16;
 				}
 			}
 
 			if (outlayer[3] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs13.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[3] + 48, IN, OUT })) {
 					outlayer[3] += 16 * 16;
 				}
 			} else {
-				if (jobs13done) {
+				if (jobs13 == ZeroLong) {
 					outlayer[3] += 16 * 16;
 				}
 			}
 
 			if (outlayer[4] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs20.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[4] + 64, IN, OUT })) {
 					outlayer[4] += 16 * 16;
 				}
 			} else {
-				if (jobs20done) {
+				if (jobs20 == ZeroLong) {
 					outlayer[4] += 16 * 16;
 				}
 			}
 
 			if (outlayer[5] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs21.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[5] + 80, IN, OUT })) {
 					outlayer[5] += 16 * 16;
 				}
 			} else {
-				if (jobs21done) {
+				if (jobs21 == ZeroLong) {
 					outlayer[5] += 16 * 16;
 				}
 			}
 
 			if (outlayer[6] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs22.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[6] + 96, IN, OUT })) {
 					outlayer[6] += 16 * 16;
 				}
 			} else {
-				if (jobs22done) {
+				if (jobs22 == ZeroLong) {
 					outlayer[6] += 16 * 16;
 				}
 			}
 
 			if (outlayer[7] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs23.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[7] + 112, IN, OUT })) {
 					outlayer[7] += 16 * 16;
 				}
 			} else {
-				if (jobs23done) {
+				if (jobs23 == ZeroLong) {
 					outlayer[7] += 16 * 16;
 				}
 			}
 
 			if (outlayer[8] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs30.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[8] + 128, IN, OUT })) {
 					outlayer[8] += 16 * 16;
 				}
 			} else {
-				if (jobs30done) {
+				if (jobs30 == ZeroLong) {
 					outlayer[8] += 16 * 16;
 				}
 			}
 
 			if (outlayer[9] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs31.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[9] + 144, IN, OUT })) {
 					outlayer[9] += 16 * 16;
 				}
 			} else {
-				if (jobs31done) {
+				if (jobs31 == ZeroLong) {
 					outlayer[9] += 16 * 16;
 				}
 			}
 
 			if (outlayer[10] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs32.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[10] + 160, IN, OUT })) {
 					outlayer[10] += 16 * 16;
 				}
 			} else {
-				if (jobs32done) {
+				if (jobs32 == ZeroLong) {
 					outlayer[10] += 16 * 16;
 				}
 			}
 
 			if (outlayer[11] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs33.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[11] + 176, IN, OUT })) {
 					outlayer[11] += 16 * 16;
 				}
 			} else {
-				if (jobs33done) {
+				if (jobs33 == ZeroLong) {
 					outlayer[11] += 16 * 16;
 				}
 			}
 
 			if (outlayer[12] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs40.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[12] + 192, IN, OUT })) {
 					outlayer[12] += 16 * 16;
 				}
 			} else {
-				if (jobs40done) {
+				if (jobs40 == ZeroLong) {
 					outlayer[12] += 16 * 16;
 				}
 			}
 
 			if (outlayer[13] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs41.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[13] + 208, IN, OUT })) {
 					outlayer[13] += 16 * 16;
 				}
 			} else {
-				if (jobs41done) {
+				if (jobs41 == ZeroLong) {
 					outlayer[13] += 16 * 16;
 				}
 			}
 
 			if (outlayer[14] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs42.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[14] + 224, IN, OUT })) {
 					outlayer[14] += 16 * 16;
 				}
 			} else {
-				if (jobs42done) {
+				if (jobs42 == ZeroLong) {
 					outlayer[14] += 16 * 16;
 				}
 			}
 
 			if (outlayer[15] < OUT) {
-				auto cmp = 0UL;
+				auto cmp = ZeroLong;
 				if (jobs43.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[15] + 240, IN, OUT })) {
 					outlayer[15] += 16 * 16;
 				}
 			} else {
-				if (jobs43done) {
+				if (jobs43 == ZeroLong) {
 					outlayer[15] += 16 * 16;
 				}
 			}
