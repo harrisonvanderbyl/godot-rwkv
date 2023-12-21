@@ -78,7 +78,7 @@ typedef struct{uint16_t i;} HVMLDYNAMIC;
 HVMLCPU KHVMLCPU = {0};
 HVMLVULKAN KHVMLVULKAN = {1};
 
-template <typename INP = HVMLCPU>
+template <typename INSHAPEP = HVMLCPU>
 struct VKTensorInfo
 {
     struct{u_int16_t i;} device_type = KHVMLCPU;
@@ -506,8 +506,8 @@ public:
         auto C = result.data;
 
         // Dimensions
-        const long IN = in.shape[2];
-        const long OUT = result.shape[2];
+        const long INSHAPE = in.shape[2];
+        const long OUTSHAPE = result.shape[2];
 
         long BBT = 1;
 
@@ -523,7 +523,7 @@ public:
         this->data_size_in_bytes = get_data_size_in_bytes();
         // std::cout << "result.data_size_in_elements: " << result.data_size_in_elements << std::endl;
 
-        assert(result.data_size_in_elements == BBT * OUT);
+        assert(result.data_size_in_elements == BBT * OUTSHAPE);
 
         // Parallel computation using vulkan
 
@@ -532,10 +532,10 @@ public:
 
         const int BLOCKSIZE = 1;
 
-        assert(OUT % BLOCKSIZE == 0);
+        assert(OUTSHAPE % BLOCKSIZE == 0);
 
-        auto kernalparams = vuda::dim3(BBT, OUT, 1);
-        vuda::launchKernel("./shaders/matmul.glsl.spv", "main", stream_id, kernalparams, BBT,IN,OUT, BLOCKSIZE, B, A, C);
+        auto kernalparams = vuda::dim3(BBT, OUTSHAPE, 1);
+        vuda::launchKernel("./shaders/matmul.glsl.spv", "main", stream_id, kernalparams, BBT,INSHAPE,OUTSHAPE, BLOCKSIZE, B, A, C);
         
         vuda::streamSynchronize(stream_id);
     }
@@ -550,11 +550,11 @@ public:
         float* C = (float*)result.data;
 
         // Dimensions
-        const long IN = in.shape[2];
-        const long OUT = result.shape[2];
+        const long INSHAPE = in.shape[2];
+        const long OUTSHAPE = result.shape[2];
 
-        // std::cout << "IN: " << IN << std::endl;
-        // std::cout << "OUT: " << OUT << std::endl;
+        // std::cout << "INSHAPE: " << INSHAPE << std::endl;
+        // std::cout << "OUTSHAPE: " << OUTSHAPE << std::endl;
 
         long BBT = in.shape[0] * in.shape[1];
 
@@ -563,7 +563,7 @@ public:
         // confirm result length
         // std::cout << "result.data_size_in_elements: " << result.data_size_in_elements << std::endl;
 
-        // assert(result.data_size_in_elements == BBT * OUT);
+        // assert(result.data_size_in_elements == BBT * OUTSHAPE);
         // std::cout << "BBT: " << BBT << std::endl;
         // Parallel computation using vulkan
        
@@ -571,12 +571,12 @@ public:
 
         const int BLOCKSIZE = 64;
 
-        assert(OUT % BLOCKSIZE == 0);
+        assert(OUTSHAPE % BLOCKSIZE == 0);
 
         
 
-        auto kernalparams = vuda::dim3(BBT, OUT/(32), IN/(32));
-        vuda::launchKernel("./shaders/matmul8.glsl.spv", "main", stream_id, kernalparams, BBT,IN,OUT, BLOCKSIZE, B, A, Ar, Ao, C);
+        auto kernalparams = vuda::dim3(BBT, OUTSHAPE/(32), INSHAPE/(32));
+        vuda::launchKernel("./shaders/matmul8.glsl.spv", "main", stream_id, kernalparams, BBT,INSHAPE,OUTSHAPE, BLOCKSIZE, B, A, Ar, Ao, C);
         
         vuda::streamSynchronize(stream_id);
     }
@@ -594,8 +594,8 @@ public:
         float *C = result.data;
 
         // Dimensions
-        const long IN = in.shape[2];
-        const long OUT = result.shape[2];
+        const long INSHAPE = in.shape[2];
+        const long OUTSHAPE = result.shape[2];
 
         long BBT = 1;
 
@@ -610,14 +610,14 @@ public:
         // confirm result length
         // std::cout << "result.data_size_in_elements: " << result.data_size_in_elements << std::endl;
         // std::cout << "BBT: " << BBT << std::endl;
-        assert(result.data_size_in_elements == BBT * OUT);
+        assert(result.data_size_in_elements == BBT * OUTSHAPE);
 
         if (thisisbf16)
         {
             bfloat16 *A = (bfloat16 *)this->data;
 // Parallel computation
 // #pragma omp parallel for collapse(2) schedule(dynamic, 32) shared(A, B, C)
-            for (long i = 0; i < OUT; i += 1)
+            for (long i = 0; i < OUTSHAPE; i += 1)
             {
 
                 for (long bbj = 0; bbj < BBT; bbj += 1)
@@ -625,15 +625,15 @@ public:
 
                     auto acc = SET1(0.0f);
 // #pragma unroll(16)
-                    for (long k = 0; k < IN; k += 32) // let intrinsics handle the unrolling
+                    for (long k = 0; k < INSHAPE; k += 32) // let intrinsics handle the unrolling
                     {
 
                         acc = DOTBF16(
-                            LOADBF16(&A[i * IN + k]),
-                            LOADFP32BF16(B + bbj * IN + k),
+                            LOADBF16(&A[i * INSHAPE + k]),
+                            LOADFP32BF16(B + bbj * INSHAPE + k),
                             acc);
                     }
-                    C[bbj * OUT + i] = REDUCE(acc);
+                    C[bbj * OUTSHAPE + i] = REDUCE(acc);
                 }
             }
         }
@@ -642,7 +642,7 @@ public:
             float *A = (float *)this->data;
 // Parallel computation for float tensors
 // #pragma omp parallel for collapse(2) schedule(dynamic, 32) shared(A, B, C)
-            for (long i = 0; i < OUT; i += 1)
+            for (long i = 0; i < OUTSHAPE; i += 1)
             {
 
                 for (long bbj = 0; bbj < BBT; bbj += 1)
@@ -650,15 +650,15 @@ public:
 
                     auto acc = SET1(0.0f);
 // #pragma unroll(16)
-                    for (long k = 0; k < IN; k += 32) // let intrinsics handle the unrolling
+                    for (long k = 0; k < INSHAPE; k += 32) // let intrinsics handle the unrolling
                     {
 
                         acc = DOTBF16F32(
-                            LOADFP32BF16(A + i * IN + k),
-                            LOADFP32BF16(B + bbj * IN + k),
+                            LOADFP32BF16(A + i * INSHAPE + k),
+                            LOADFP32BF16(B + bbj * INSHAPE + k),
                             acc);
                     }
-                    C[bbj * OUT + i] = REDUCE(acc);
+                    C[bbj * OUTSHAPE + i] = REDUCE(acc);
                 }
             }
         }
@@ -743,7 +743,7 @@ public:
         // Dimensions
         auto BATCH = indicies.size();
         auto T = indicies[0].size();
-        auto OUT = this->shape[1];
+        auto OUTSHAPE = this->shape[1];
 
         // print initial shape
         // std::cout << "buffer.size: " << buffer.data_size_in_elements << std::endl;
@@ -751,14 +751,14 @@ public:
         buffer.shape.clear();
         buffer.shape.push_back(BATCH);
         buffer.shape.push_back(T);
-        buffer.shape.push_back(OUT);
+        buffer.shape.push_back(OUTSHAPE);
         buffer.data_size_in_elements = get_data_size_in_elements(buffer.shape);
         buffer.data_size_in_bytes = buffer.get_data_size_in_bytes();
 
         // std::cout << "BATCH: " << BATCH << std::endl;
         // std::cout << "T: " << T << std::endl;
-        // std::cout << "OUT: " << OUT << std::endl;
-        // std::cout << "out.size: " << BATCH*T*OUT << std::endl;
+        // std::cout << "OUTSHAPE: " << OUTSHAPE << std::endl;
+        // std::cout << "out.size: " << BATCH*T*OUTSHAPE << std::endl;
         // std::cout << "buffer.data_size_in_elements: " << buffer.data_size_in_elements << std::endl;
         // std::cout << "buffer.data_size_in_bytes: " << buffer.data_size_in_bytes << std::endl;
 
@@ -772,10 +772,10 @@ public:
             for (u_int64_t j = 0; j < T; j += 1)
             {
 
-                for (u_int64_t k = 0; k < OUT; k += SIMD_WIDTH)
+                for (u_int64_t k = 0; k < OUTSHAPE; k += SIMD_WIDTH)
                 {
-                    auto acc = LOAD(A + indicies[i][j] * OUT + k);
-                    STORE(&buffer.data[i * T * OUT + j * OUT + k], acc);
+                    auto acc = LOAD(A + indicies[i][j] * OUTSHAPE + k);
+                    STORE(&buffer.data[i * T * OUTSHAPE + j * OUTSHAPE + k], acc);
                 }
             }
         }}
@@ -798,12 +798,12 @@ public:
             }
         }
 
-        ulong OUT = this->shape[this->shape.size() - 1];
+        ulong OUTSHAPE = this->shape[this->shape.size() - 1];
 
         // confirm result length
         // std::cout << "result.data_size_in_elements: " << result.data_size_in_elements << std::endl;
         // std::cout << "this->data_size_in_elements: " << this->data_size_in_elements << std::endl;
-        // std::cout << "OUT:" << OUT << std::endl;
+        // std::cout << "OUTSHAPE:" << OUTSHAPE << std::endl;
         // std::cout << "BTT:" << BTT << std::endl;
         assert(result.data_size_in_elements == this->data_size_in_elements);
 
@@ -822,29 +822,29 @@ public:
             {
                 float mean = 0.0f;
                 float var = 0.0f;
-                for (ulong j = 0; j < OUT; j += SIMD_WIDTH)
+                for (ulong j = 0; j < OUTSHAPE; j += SIMD_WIDTH)
                 {
-                    mean += REDUCE(LOAD(A + i * OUT + j));
+                    mean += REDUCE(LOAD(A + i * OUTSHAPE + j));
                 }
-                mean /= OUT;
+                mean /= OUTSHAPE;
 
-                for (ulong j = 0; j < OUT; j += SIMD_WIDTH)
+                for (ulong j = 0; j < OUTSHAPE; j += SIMD_WIDTH)
                 {
-                    auto acc = ADD(LOAD(A + i * OUT + j), SET1(-1.0f * mean));
+                    auto acc = ADD(LOAD(A + i * OUTSHAPE + j), SET1(-1.0f * mean));
                     acc = MULTIPLY(acc, acc);
                     var += REDUCE(acc);
                 }
-                var /= OUT;
+                var /= OUTSHAPE;
 
-                for (ulong j = 0; j < OUT; j += SIMD_WIDTH)
+                for (ulong j = 0; j < OUTSHAPE; j += SIMD_WIDTH)
                 {
                     // std::cout << "level1: " <<j<< std::endl;
-                    auto acc = ADD(LOAD(A + i * OUT + j), SET1(-1.0f * mean));
+                    auto acc = ADD(LOAD(A + i * OUTSHAPE + j), SET1(-1.0f * mean));
                     // std::cout << "level1mm: " <<j<< std::endl;
                     acc = MULTIPLY(acc, SET1(1.0f / sqrt(var + eps)));
                     // std::cout << "level1acc: " <<j<< std::endl;
 
-                    STORE(C + i * OUT + j, MULTADD(LOAD(W + j), acc, LOAD(B + j)));
+                    STORE(C + i * OUTSHAPE + j, MULTADD(LOAD(W + j), acc, LOAD(B + j)));
                     // std::cout << "level1store: " <<j<< std::endl;
                 }
             }
@@ -855,10 +855,10 @@ public:
 
             const int BLOCKSIZE = 32;
 
-            assert(OUT % BLOCKSIZE == 0);
+            assert(OUTSHAPE % BLOCKSIZE == 0);
 
             auto kernalparams = vuda::dim3(BTT, 1, 1);
-            vuda::launchKernel("./shaders/layernorm.glsl.spv", "main", stream_id, kernalparams, BTT,OUT, BLOCKSIZE, A, W, B, C);
+            vuda::launchKernel("./shaders/layernorm.glsl.spv", "main", stream_id, kernalparams, BTT,OUTSHAPE, BLOCKSIZE, A, W, B, C);
             
             vuda::streamSynchronize(stream_id);
         }
@@ -875,7 +875,7 @@ public:
 
         // Dimensions
 
-        auto IN = this->shape[0];
+        auto INSHAPE = this->shape[0];
 
         if (this->device.device_type.i == KHVMLCPU.i){
             
@@ -883,7 +883,7 @@ public:
 // #pragma omp parallel for schedule(static, 32)
         for (ulong i = 0; i < result.data_size_in_elements; i += SIMD_WIDTH)
         {
-            STORE(C + i, MULTADD(LOAD(B + i), LOAD(this->data + (i % IN)), MULTIPLY(LOAD(A + i), SET1(1.0f) - LOAD(this->data + (i % IN)))));
+            STORE(C + i, MULTADD(LOAD(B + i), LOAD(this->data + (i % INSHAPE)), MULTIPLY(LOAD(A + i), SET1(1.0f) - LOAD(this->data + (i % INSHAPE)))));
         }}
 
         else{
@@ -895,7 +895,7 @@ public:
             const int entries = result.data_size_in_elements;
 
             auto kernalparams = vuda::dim3(entries/BLOCKSIZE, 1, 1);
-            vuda::launchKernel("./shaders/lerp.glsl.spv", "main", stream_id, kernalparams, entries, BLOCKSIZE, IN, this->data, B, A, C);
+            vuda::launchKernel("./shaders/lerp.glsl.spv", "main", stream_id, kernalparams, entries, BLOCKSIZE, INSHAPE, this->data, B, A, C);
             
             vuda::streamSynchronize(stream_id);
         }

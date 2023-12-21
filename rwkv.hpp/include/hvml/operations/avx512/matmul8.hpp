@@ -35,8 +35,8 @@ struct MatMulJob {
 	const float *Ct;
 	const ulong bbt;
 	const ulong ii;
-	const ulong IN;
-	const ulong OUT;
+	const ulong INSHAPE;
+	const ulong OUTSHAPE;
 	JOBTYPE type = MATMUL;
 	const float *ex = nullptr;
 	const ulong H = 0;
@@ -69,8 +69,8 @@ void dopartial(MatMulJob job) {
 	auto A = job.A;
 	auto B = job.B;
 	auto C = job.C;
-	auto IN = job.IN;
-	auto OUT = job.OUT;
+	auto INSHAPE = job.INSHAPE;
+	auto OUTSHAPE = job.OUTSHAPE;
 	auto Ao = job.Ao;
 	auto Ar = job.Ar;
 	auto bbt = job.bbt;
@@ -83,13 +83,13 @@ void dopartial(MatMulJob job) {
 			const float Aoio = Aoioo[i & 15];
 
 			__m512 aa = _mm512_setzero_ps();
-			const auto IAIN = A + i * IN;
-			for (uint32_t k = 0; k < IN; k += 32) {
-				const __m512 b01 = _mm512_load_ps(B + bbt * IN + k + 16);
-				const __m512 b00 = _mm512_load_ps(B + bbt * IN + k);
+			const auto IAINSHAPE = A + i * INSHAPE;
+			for (uint32_t k = 0; k < INSHAPE; k += 32) {
+				const __m512 b01 = _mm512_load_ps(B + bbt * INSHAPE + k + 16);
+				const __m512 b00 = _mm512_load_ps(B + bbt * INSHAPE + k);
 
-				const __m512 a00 = Aoio + _mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(*((__m128i *)(IAIN + k))));
-				const __m512 a01 = Aoio + _mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(*((__m128i *)(IAIN + k + 16))));
+				const __m512 a00 = Aoio + _mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(*((__m128i *)(IAINSHAPE + k))));
+				const __m512 a01 = Aoio + _mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(*((__m128i *)(IAINSHAPE + k + 16))));
 
 				// aa = _mm512_dpbf16_ps(aa, _mm512_cvtne2ps_pbh(a00, a01), _mm512_cvtne2ps_pbh(b00, b01));
 				aa = _mm512_fmadd_ps(a00, b00, aa);
@@ -98,7 +98,7 @@ void dopartial(MatMulJob job) {
 			zz[i & 15] = _mm512_reduce_add_ps(aa);
 		}
 		_mm512_store_ps(
-				(void *)(C + bbt * OUT + ii),
+				(void *)(C + bbt * OUTSHAPE + ii),
 				zz * Ario);
 	#elif defined(__AVX2__)
 		for (ulong b = 0; b < 16; b+= 8){
@@ -106,29 +106,28 @@ void dopartial(MatMulJob job) {
 		const auto Aoio1 = DIVIDE(LOAD(Ao + ii + b),Ario1);
 
 		auto zz1 = SET1(0.0);
-
+		
 		for (uint32_t i = ii+b; i < ii + b+8; i += 1) {
 			auto Aoio = Aoio1[i&7];
 
-			const auto IAIN = A + i * IN;
+			const auto IAINSHAPE = A + i * INSHAPE;
 
 			auto sum1 = SET1(0.0);
 			auto sum2 = SET1(0.0);
-			
-			for (uint32_t k = 0; k < IN; k += 16) {
+			for (uint32_t k = 0; k < INSHAPE; k += 16) {
 				// avx2
-				auto w = _mm256_cvtepu8_epi32(_mm_loadu_si128((__m128i *)(IAIN + k)));  // Load the input uint8_t vector
+				auto w = _mm256_cvtepu8_epi32(_mm_loadu_si128((__m128i *)(IAINSHAPE + k)));  // Load the input uint8_t vector
 				// convert uint32_t to float32x8_t
 				auto u = _mm256_cvtepi32_ps(w)+Aoio;   // Convert uint32_t to float32_t
 				// Load the input float vector
 				// Perform the multiplication with inp vector
-				sum1 = MULTADD(u, LOAD(B + bbt * IN + k),sum1);
+				sum1 = MULTADD(u, LOAD(B + bbt * INSHAPE + k),sum1);
 
-				auto w1 = _mm256_cvtepu8_epi32(_mm_loadu_si128((__m128i *)(IAIN + k + 8)));  // Load the input uint8_t vector
+				auto w1 = _mm256_cvtepu8_epi32(_mm_loadu_si128((__m128i *)(IAINSHAPE + k + 8)));  // Load the input uint8_t vector
 
 				auto u1 = _mm256_cvtepi32_ps(w1)+Aoio;   // Convert uint32_t to float32_t
 
-				sum2 = MULTADD(u1, LOAD(B + bbt * IN + k + 8),sum2);
+				sum2 = MULTADD(u1, LOAD(B + bbt * INSHAPE + k + 8),sum2);
 				
 			}
 
@@ -141,7 +140,7 @@ void dopartial(MatMulJob job) {
 
 		
 		STORE(
-				(void *)(C + bbt * OUT + ii + b),
+				(void *)(C + bbt * OUTSHAPE + ii + b),
 				zz1 * Ario1);
 		}
 
@@ -155,14 +154,14 @@ void dopartial(MatMulJob job) {
 		for (uint32_t i = ii+b; i < ii + b+4; i += 1) {
 			auto Aoio = Aoio1[i&3];
 
-			const auto IAIN = A + i * IN;
+			const auto IAINSHAPE = A + i * INSHAPE;
 
 			auto sum1 = SET1(0.0);
 			auto sum2 = SET1(0.0);
 			
-			for (uint32_t k = 0; k < IN; k += 8) {
+			for (uint32_t k = 0; k < INSHAPE; k += 8) {
 				
-				auto u16_vec = vmovl_u8(vld1_u8((IAIN + k)));  
+				auto u16_vec = vmovl_u8(vld1_u8((IAINSHAPE + k)));  
 				
 					// Convert uint8_t values to float32x4_t
 									// convert uint8_t to uint16_t
@@ -170,8 +169,8 @@ void dopartial(MatMulJob job) {
 				auto u32_high_vec = vcvtq_f32_u32(vmovl_u16(vget_high_u16(u16_vec)))+Aoio; // Extract upper part and convert to uint32_t
 				// Load the input float vector
 				// Perform the multiplication with inp vector
-				sum1 = MULTADD(u32_low_vec, vld1q_f32(B + bbt * IN + k),sum1);
-				sum2 = MULTADD(u32_high_vec, vld1q_f32(B + bbt * IN + k + 4),sum2);
+				sum1 = MULTADD(u32_low_vec, vld1q_f32(B + bbt * INSHAPE + k),sum1);
+				sum2 = MULTADD(u32_high_vec, vld1q_f32(B + bbt * INSHAPE + k + 4),sum2);
 
 			}
 
@@ -184,7 +183,7 @@ void dopartial(MatMulJob job) {
 
 		
 		STORE(
-				(void *)(C + bbt * OUT + ii + b),
+				(void *)(C + bbt * OUTSHAPE + ii + b),
 				zz1 * Ario1);
 		}
 	#endif
@@ -192,8 +191,8 @@ void dopartial(MatMulJob job) {
 
 void dopartialwkv5att(MatMulJob job) {
 	auto T = job.bbt;
-	auto CH = job.IN;
-	auto bb = job.OUT;
+	auto CH = job.INSHAPE;
+	auto bb = job.OUTSHAPE;
 	auto kk = job.Ao;
 	auto ww = job.C;
 	auto vv = job.Ar;
@@ -326,8 +325,8 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 
 	const ulong BB = Bt.shape[0];
 	const ulong T = Bt.shape[1];
-	const ulong IN = Bt.shape[2];
-	const ulong OUT = Ct.shape[2];
+	const ulong INSHAPE = Bt.shape[2];
+	const ulong OUTSHAPE = Ct.shape[2];
 
 	startWorkers();
 
@@ -336,14 +335,14 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 			0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0
 		};
-		while ((outlayer[0] <= OUT) || (outlayer[1] <= OUT) || (outlayer[2] <= OUT) || (outlayer[3] <= OUT) ||
-				(outlayer[4] <= OUT) || (outlayer[5] <= OUT) || (outlayer[6] <= OUT) || (outlayer[7] <= OUT) ||
-				(outlayer[8] <= OUT) || (outlayer[9] <= OUT) || (outlayer[10] <= OUT) || (outlayer[11] <= OUT) ||
-				(outlayer[12] <= OUT) || (outlayer[13] <= OUT) || (outlayer[14] <= OUT) || (outlayer[15] <= OUT)) {
+		while ((outlayer[0] <= OUTSHAPE) || (outlayer[1] <= OUTSHAPE) || (outlayer[2] <= OUTSHAPE) || (outlayer[3] <= OUTSHAPE) ||
+				(outlayer[4] <= OUTSHAPE) || (outlayer[5] <= OUTSHAPE) || (outlayer[6] <= OUTSHAPE) || (outlayer[7] <= OUTSHAPE) ||
+				(outlayer[8] <= OUTSHAPE) || (outlayer[9] <= OUTSHAPE) || (outlayer[10] <= OUTSHAPE) || (outlayer[11] <= OUTSHAPE) ||
+				(outlayer[12] <= OUTSHAPE) || (outlayer[13] <= OUTSHAPE) || (outlayer[14] <= OUTSHAPE) || (outlayer[15] <= OUTSHAPE)) {
 			
-			if (outlayer[0] < OUT) {
+			if (outlayer[0] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs10.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[0], IN, OUT })) {
+				if (jobs10.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[0], INSHAPE, OUTSHAPE })) {
 					outlayer[0] += 16 * 16;
 				}
 			} else {
@@ -352,9 +351,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[1] < OUT) {
+			if (outlayer[1] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs11.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[1] + 16, IN, OUT })) {
+				if (jobs11.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[1] + 16, INSHAPE, OUTSHAPE })) {
 					outlayer[1] += 16 * 16;
 				}
 			} else {
@@ -363,9 +362,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[2] < OUT) {
+			if (outlayer[2] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs12.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[2] + 32, IN, OUT })) {
+				if (jobs12.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[2] + 32, INSHAPE, OUTSHAPE })) {
 					outlayer[2] += 16 * 16;
 				}
 			} else {
@@ -374,9 +373,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[3] < OUT) {
+			if (outlayer[3] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs13.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[3] + 48, IN, OUT })) {
+				if (jobs13.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[3] + 48, INSHAPE, OUTSHAPE })) {
 					outlayer[3] += 16 * 16;
 				}
 			} else {
@@ -385,9 +384,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[4] < OUT) {
+			if (outlayer[4] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs20.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[4] + 64, IN, OUT })) {
+				if (jobs20.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[4] + 64, INSHAPE, OUTSHAPE })) {
 					outlayer[4] += 16 * 16;
 				}
 			} else {
@@ -396,9 +395,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[5] < OUT) {
+			if (outlayer[5] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs21.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[5] + 80, IN, OUT })) {
+				if (jobs21.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[5] + 80, INSHAPE, OUTSHAPE })) {
 					outlayer[5] += 16 * 16;
 				}
 			} else {
@@ -407,9 +406,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[6] < OUT) {
+			if (outlayer[6] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs22.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[6] + 96, IN, OUT })) {
+				if (jobs22.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[6] + 96, INSHAPE, OUTSHAPE })) {
 					outlayer[6] += 16 * 16;
 				}
 			} else {
@@ -418,9 +417,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[7] < OUT) {
+			if (outlayer[7] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs23.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[7] + 112, IN, OUT })) {
+				if (jobs23.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[7] + 112, INSHAPE, OUTSHAPE })) {
 					outlayer[7] += 16 * 16;
 				}
 			} else {
@@ -429,9 +428,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[8] < OUT) {
+			if (outlayer[8] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs30.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[8] + 128, IN, OUT })) {
+				if (jobs30.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[8] + 128, INSHAPE, OUTSHAPE })) {
 					outlayer[8] += 16 * 16;
 				}
 			} else {
@@ -440,9 +439,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[9] < OUT) {
+			if (outlayer[9] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs31.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[9] + 144, IN, OUT })) {
+				if (jobs31.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[9] + 144, INSHAPE, OUTSHAPE })) {
 					outlayer[9] += 16 * 16;
 				}
 			} else {
@@ -451,9 +450,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[10] < OUT) {
+			if (outlayer[10] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs32.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[10] + 160, IN, OUT })) {
+				if (jobs32.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[10] + 160, INSHAPE, OUTSHAPE })) {
 					outlayer[10] += 16 * 16;
 				}
 			} else {
@@ -462,9 +461,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[11] < OUT) {
+			if (outlayer[11] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs33.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[11] + 176, IN, OUT })) {
+				if (jobs33.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[11] + 176, INSHAPE, OUTSHAPE })) {
 					outlayer[11] += 16 * 16;
 				}
 			} else {
@@ -473,9 +472,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[12] < OUT) {
+			if (outlayer[12] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs40.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[12] + 192, IN, OUT })) {
+				if (jobs40.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[12] + 192, INSHAPE, OUTSHAPE })) {
 					outlayer[12] += 16 * 16;
 				}
 			} else {
@@ -484,9 +483,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[13] < OUT) {
+			if (outlayer[13] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs41.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[13] + 208, IN, OUT })) {
+				if (jobs41.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[13] + 208, INSHAPE, OUTSHAPE })) {
 					outlayer[13] += 16 * 16;
 				}
 			} else {
@@ -495,9 +494,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[14] < OUT) {
+			if (outlayer[14] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs42.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[14] + 224, IN, OUT })) {
+				if (jobs42.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[14] + 224, INSHAPE, OUTSHAPE })) {
 					outlayer[14] += 16 * 16;
 				}
 			} else {
@@ -506,9 +505,9 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 				}
 			}
 
-			if (outlayer[15] < OUT) {
+			if (outlayer[15] < OUTSHAPE) {
 				auto cmp = ZeroLong;
-				if (jobs43.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[15] + 240, IN, OUT })) {
+				if (jobs43.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[15] + 240, INSHAPE, OUTSHAPE })) {
 					outlayer[15] += 16 * 16;
 				}
 			} else {
