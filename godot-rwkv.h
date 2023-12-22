@@ -48,6 +48,8 @@ class Agent : public Resource {
 		}
 
 		add_context_queue = std::string(contexta.utf8().get_data());
+		auto tokens = tokenizer->encode(add_context_queue);
+		context.clear();
 		busy = true;
 		return 0;
 	}
@@ -156,16 +158,16 @@ public:
 						auto maxBatchSeqSize = max_agents;
 
 						// process tokens in batches of maxBatchSeqSize
-						for (ulong oi = 0; oi < tokens.size(); oi += maxBatchSeqSize) {
+						for (ulong oi = 0; oi < tokens.size()-1; oi += maxBatchSeqSize) {
 							auto tokensBatch = std::vector<ulong>();
-							for (ulong j = oi; j < MIN(oi + maxBatchSeqSize, tokens.size()); j++) {
+							tokensBatch.push_back(agents[i]->last_token);
+							for (ulong j = oi; j < MIN(oi + maxBatchSeqSize, tokens.size()-1); j++) {
 								tokensBatch.push_back(tokens[j]);
 							}
 							std::cout << "tokensBatch: " << oi << std::endl;
 							auto outputs = (*model)({tokensBatch});
-							if (oi + maxBatchSeqSize >= tokens.size()) {
-								agents[i]->last_token = typical(outputs[0][tokens.size()-1].data, agents[i]->temperature, agents[i]->tau);
-								agents[i]->context.push_back(agents[i]->last_token);
+							if (oi + maxBatchSeqSize >= tokens.size()-1) {
+								agents[i]->last_token = tokens[tokens.size()-1];
 							}
 						}
 						std::cout << "context processed" << std::endl;
@@ -206,10 +208,33 @@ public:
 				for (ulong i = 0; i < toProcess.size(); i++) {
 					auto out = outputs[i];
 					auto token = typical(out.data, toProcess[i]->temperature, toProcess[i]->tau);
-					toProcess[i]->last_token = token;
+					
 					toProcess[i]->max_queued_tokens -= 1;
-					model->get_state(toProcess[i]->state, i);
-					toProcess[i]->context.push_back(token);
+					
+
+					// check if stop sequence
+					bool stopped = (token == 0);
+					if ((toProcess[i]->context.size() > 5) && token != 0){
+						std::cout << "last token: " << token << std::endl;
+						auto tokstocheck = std::vector<ulong>(toProcess[i]->context.end()-5, toProcess[i]->context.end());
+						tokstocheck.push_back(token);
+						std::string context5toks = tokenizer->decode(tokstocheck);
+						for (ulong j = 0; j < toProcess[i]->stop_sequences.size(); j++) {
+							auto stop_sequence = toProcess[i]->stop_sequences[j];
+							
+							if (context5toks.find(stop_sequence) != std::string::npos) {
+								toProcess[i]->max_queued_tokens = 0;
+								stopped = true;
+							}
+						}
+					}
+
+					if (!stopped) {
+						model->get_state(toProcess[i]->state, i);
+						toProcess[i]->last_token = token;
+						toProcess[i]->context.push_back(token);
+					}
+
 					if (toProcess[i]->max_queued_tokens == 0) {
 						toProcess[i]->busy = false;
 					}
