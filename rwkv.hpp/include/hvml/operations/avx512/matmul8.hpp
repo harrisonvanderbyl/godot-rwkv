@@ -102,13 +102,13 @@ void dopartial(MatMulJob job) {
 				zz * Ario);
 	#elif defined(__AVX2__)
 		for (ulong b = 0; b < 16; b+= 8){
-		const auto Ario1 = LOAD(Ar + ii+b);
-		const auto Aoio1 = DIVIDE(LOAD(Ao + ii + b),Ario1);
+		const float* Ario1 = (Ar + ii+b);
+		const float* Aoio1 = (Ao + ii + b);
 
-		auto zz1 = SET1(0.0);
+		float zz1[8] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0};
 		
 		for (uint32_t i = ii+b; i < ii + b+8; i += 1) {
-			auto Aoio = Aoio1[i&7];
+			auto Aoio = SET1(Aoio1[i&7]);
 
 			const auto IAINSHAPE = A + i * INSHAPE;
 
@@ -118,20 +118,20 @@ void dopartial(MatMulJob job) {
 				// avx2
 				auto w = _mm256_cvtepu8_epi32(_mm_loadu_si128((__m128i *)(IAINSHAPE + k)));  // Load the input uint8_t vector
 				// convert uint32_t to float32x8_t
-				auto u = _mm256_cvtepi32_ps(w)+Aoio;   // Convert uint32_t to float32_t
+				auto u = ADD(_mm256_cvtepi32_ps(w),Aoio);   // Convert uint32_t to float32_t
 				// Load the input float vector
 				// Perform the multiplication with inp vector
 				sum1 = MULTADD(u, LOAD(B + bbt * INSHAPE + k),sum1);
 
 				auto w1 = _mm256_cvtepu8_epi32(_mm_loadu_si128((__m128i *)(IAINSHAPE + k + 8)));  // Load the input uint8_t vector
 
-				auto u1 = _mm256_cvtepi32_ps(w1)+Aoio;   // Convert uint32_t to float32_t
+				auto u1 = ADD(_mm256_cvtepi32_ps(w1),Aoio);   // Convert uint32_t to float32_t
 
 				sum2 = MULTADD(u1, LOAD(B + bbt * INSHAPE + k + 8),sum2);
 				
 			}
 
-			sum1 = sum1+sum2;
+			sum1 = ADD(sum1,sum2);
 			
 			zz1[i&7]= REDUCE(sum1);
 			
@@ -141,7 +141,7 @@ void dopartial(MatMulJob job) {
 		
 		STORE(
 				(void *)(C + bbt * OUTSHAPE + ii + b),
-				zz1 * Ario1);
+				MULTIPLY(LOAD(zz1) , LOAD(Ario1)));
 		}
 
 	#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
@@ -174,7 +174,7 @@ void dopartial(MatMulJob job) {
 
 			}
 
-			sum1 = sum1+sum2;
+			sum1 = ADD(sum1,sum2);
 			
 			zz1[i&3]= REDUCE(sum1);
 			
@@ -204,20 +204,20 @@ void dopartialwkv5att(MatMulJob job) {
 	auto hh = job.hh;
 
 	// 1d
-	uint bsize = H * T * CH;
+	uint32_t bsize = H * T * CH;
 
 	// 1d tensor
-	uint tsize = H * CH;
+	uint32_t tsize = H * CH;
 	// 2d tensor
-	uint ttsize = H * CH * CH;
+	uint32_t ttsize = H * CH * CH;
 
 	// 1d
-	uint hsize = CH;
+	uint32_t hsize = CH;
 	// 2d
-	uint hhsize = CH * CH;
+	uint32_t hhsize = CH * CH;
 
-	for (uint t = 0; t < T; t++) {
-		for (uint i = 0; i < CH; i++) {
+	for (uint32_t t = 0; t < T; t++) {
+		for (uint32_t i = 0; i < CH; i++) {
 			auto btimeoffset = bb * bsize;
 			auto timeoffset = btimeoffset + t * tsize;
 			auto bbhsize = bb * ttsize;
@@ -226,7 +226,7 @@ void dopartialwkv5att(MatMulJob job) {
 			auto bhofseti = timeoffset + hoffset;
 			auto bbhhsize = bbhsize + hh * hhsize;
 
-			uint iind = bhofseti + i;
+			uint32_t iind = bhofseti + i;
 			auto hoffseti = hoffset + i;
 			auto bbhhofseti = bbhhsize + i * hsize;
 
@@ -236,9 +236,9 @@ void dopartialwkv5att(MatMulJob job) {
 			auto rrr = SET1(rr[iind]);
 			auto www = SET1(ww[hoffseti]);
 
-			for (uint j = 0; j < CH; j += SIMD_WIDTH) {
-				uint jind = bhofseti + j;
-				uint sind = bbhhofseti + j;
+			for (uint32_t j = 0; j < CH; j += SIMD_WIDTH) {
+				uint32_t jind = bhofseti + j;
+				uint32_t sind = bbhhofseti + j;
 
 				// atu = k[t,bb,hh,i]*v[t,bb,hh,j]
 				auto vvv = LOAD(&vv[jind]);
@@ -529,15 +529,15 @@ void Tensor<float, HVMLCPU>::wkv5(Tensor<float, HVMLCPU> &r, Tensor<float, HVMLC
 	auto ss = this->data;
 	auto out = y.data;
 
-	uint B = r.shape[0];
-	uint T = r.shape[1];
-	uint C = r.shape[2];
-	uint H = this->shape[1];
+	uint32_t B = r.shape[0];
+	uint32_t T = r.shape[1];
+	uint32_t C = r.shape[2];
+	uint32_t H = this->shape[1];
 
 	// #pragma omp parallel for collapse(2) schedule(guided, 64) shared(kk, vv, ww, uu, rr, ss, out)
-	for (uint bb = 0; bb < B; bb++) {
+	for (uint32_t bb = 0; bb < B; bb++) {
 		// heads are divisable by 8 I think
-		for (uint hh = 0; hh < H; hh += 8) {
+		for (uint32_t hh = 0; hh < H; hh += 8) {
 			auto job1 = MatMulJob{
 				nullptr,
 				out,

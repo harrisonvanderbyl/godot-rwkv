@@ -8,7 +8,7 @@
 #include <cassert>
 
 #include "nlohmann/json.hpp"
-
+using namespace std;
 
 // #include <vuda_runtime.hpp>
 // test if vulkan is enabled by seeing if <vulkan/vulkan.h> exists
@@ -81,8 +81,7 @@ HVMLVULKAN KHVMLVULKAN = {1};
 template <typename INSHAPEP = HVMLCPU>
 struct VKTensorInfo
 {
-    struct{u_int16_t i;} device_type = KHVMLCPU;
-    int offset = 0;
+    HVMLDYNAMIC device_type;
 };
 
 
@@ -112,17 +111,13 @@ public:
     // DataType *data __attribute__((aligned(ALIGNMENT)));
     // DataType if DeviceData is HVMLCPU
     // VKTensorInfo if DeviceData is VKTensorInfo
-    DataType* data __attribute__((aligned(ALIGNMENT)));
+    DataType* data;
     ulong data_size_in_elements;
     ulong data_size_in_bytes;
     ulong total_original_allocated_bytes;
 
-    VKTensorInfo<DeviceData> device = {
-        .device_type = {
-            .i = KHVMLCPU.i,
-        },
-        .offset = 0,
-    };
+    VKTensorInfo<DeviceData> device = 
+	VKTensorInfo<DeviceData>();
 
     std::vector<ulong> shape = {};
 
@@ -766,13 +761,13 @@ public:
         // #pragma omp parallel for collapse(2) schedule(dynamic, 32) shared(A, B)
         if(buffer.device.device_type.i == KHVMLCPU.i){
         // #pragma omp parallel for
-        for (u_int64_t i = 0; i < BATCH; i += 1)
+        for (ulong i = 0; i < BATCH; i += 1)
         {
 
-            for (u_int64_t j = 0; j < T; j += 1)
+            for (ulong j = 0; j < T; j += 1)
             {
 
-                for (u_int64_t k = 0; k < OUTSHAPE; k += SIMD_WIDTH)
+                for (ulong k = 0; k < OUTSHAPE; k += SIMD_WIDTH)
                 {
                     auto acc = LOAD(A + indicies[i][j] * OUTSHAPE + k);
                     STORE(&buffer.data[i * T * OUTSHAPE + j * OUTSHAPE + k], acc);
@@ -883,7 +878,7 @@ public:
 // #pragma omp parallel for schedule(static, 32)
         for (ulong i = 0; i < result.data_size_in_elements; i += SIMD_WIDTH)
         {
-            STORE(C + i, MULTADD(LOAD(B + i), LOAD(this->data + (i % INSHAPE)), MULTIPLY(LOAD(A + i), SET1(1.0f) - LOAD(this->data + (i % INSHAPE)))));
+            STORE(C + i, MULTADD(LOAD(B + i), LOAD(this->data + (i % INSHAPE)), MULTIPLY(LOAD(A + i), SUBTRACT(SET1(1.0f) , LOAD(this->data + (i % INSHAPE))))));
         }}
 
         else{
@@ -1070,7 +1065,8 @@ if (this->device.device_type.i == KHVMLCPU.i){
     }
 
     // << operator for printing
-    friend std::ostream &operator<<(std::ostream &os, const Tensor &tensor)
+	
+    friend ostream &operator<<(ostream &os, const Tensor &tensor)
     {
         DataType* outdata;
 
@@ -1094,9 +1090,9 @@ if (this->device.device_type.i == KHVMLCPU.i){
             os << outdata[0];
             return os;
         }
-
+		ulong four = 4;
         os << "Tensor(";
-        for (ulong i = 0; i < std::min(tensor.data_size_in_elements, 4UL); i++)
+        for (ulong i = 0; i < min(tensor.data_size_in_elements, four); i++)
         {
             os << outdata[i];
             if (i != tensor.data_size_in_elements - 1)

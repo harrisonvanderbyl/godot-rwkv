@@ -6,8 +6,8 @@
 class RWKV_5_ATT
 {
     public:
-        uint head_size = 64;
-        uint n_head; 
+        uint32_t head_size = 64;
+        uint32_t n_head; 
         TimeShift timeshift;
         Tensor<float> time_mix_k;
         Tensor<float> time_mix_v;

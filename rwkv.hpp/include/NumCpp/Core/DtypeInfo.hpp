@@ -90,6 +90,13 @@ namespace nc
             return std::numeric_limits<dtype>::is_signed;
         }
 
+        // if defined, undefine min and max
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
         //============================================================================
         /// Returns the minimum value of the dtype
         ///

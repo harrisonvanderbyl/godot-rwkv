@@ -5,7 +5,7 @@
 class TimeShift
 {
     public:
-        uint shiftamount = 1;
+        uint32_t shiftamount = 1;
 
         Tensor<float> state;
         

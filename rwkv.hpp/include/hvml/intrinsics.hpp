@@ -6,6 +6,34 @@
 #include <cmath>
 #define UINT8THREADALLOC 64
 
+#define ALIGNMENT 32
+// windows
+#if defined(_WIN32) || defined(_WIN64)
+#define ALIGNDECL __declspec(align(ALIGNMENT))
+#define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
+// include windows.h to get _aligned_malloc
+#include <windows.h>
+#include <malloc.h>
+#include <intrin.h>
+// no default int types
+typedef unsigned char uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int uint32_t;
+typedef unsigned long long uint64_t;
+typedef long long ulong;
+// fix missing M_E
+#ifndef M_E
+#define M_E 2.71828182845904523536f
+#endif
+
+#else
+#define ALIGNDECL __attribute__((aligned(ALIGNMENT)))
+#endif
+
+#ifndef ulong
+#define ulong size_t
+#endif
+
 #if defined(__AVX512F__) && defined(HVMLUSEAVX512) // This macro is defined if AVX-512 is supported
 #include <immintrin.h>
 
@@ -18,6 +46,7 @@
 #define REDUCE(x) _mm512_reduce_add_ps(x)
 #define ADD(x, y) _mm512_add_ps(x, y)
 #define MAX(x, y) _mm512_max_ps(x, y)
+#define SUBTRACT(x, y) _mm512_sub_ps(x, y)
 #define SIMDTYPE __m512
 
 // check if using intel compiler
@@ -83,11 +112,17 @@ SIMDTYPE exp_ps_fill(SIMDTYPE x)
 #define STORE(x, y) _mm256_store_ps((float*)x, y)
 #define SET1(x) _mm256_set1_ps(x)
 #define MULTIPLY(x, y) _mm256_mul_ps(x, y)
+#define SUBTRACT(x, y) _mm256_sub_ps(x, y)
 #define MULTADD(x, y, z) _mm256_fmadd_ps(x, y, z)
 #ifdef _mm256_reduce_add_ps
 #define REDUCE(x) _mm256_reduce_add_ps(x)
 #else
-#define REDUCE(x) x[0] + x[1] + x[2] + x[3] + x[4] + x[5] + x[6] + x[7]
+#define REDUCE(x) reducefunc(x)
+float reducefunc(__m256 x)
+{
+    float* y = (float*) &x;
+    return y[0] + y[1] + y[2] + y[3] + y[4] + y[5] + y[6] + y[7];
+}
 #endif
 #define ADD(x, y) _mm256_add_ps(x, y)
 #define MAX(x, y) _mm256_max_ps(x, y)
@@ -98,14 +133,10 @@ SIMDTYPE exp_ps_fill(SIMDTYPE x)
 #define EXP(x) _mm256_exp_ps(x)
 #else
 #define EXP(x) exp_ps_fill(x)
-SIMDTYPE exp_ps_fill(SIMDTYPE x)
+SIMDTYPE exp_ps_fill(SIMDTYPE y)
 {
-    SIMDTYPE result = SET1(0.0f);
-    for (int i = 0; i < SIMD_WIDTH; i++)
-    {
-        result[i] = pow(M_E, x[i]);
-    }
-    return result;
+    float* x = (float*) &y;
+    return _mm256_set_ps(pow(M_E, x[7]), pow(M_E, x[6]), pow(M_E, x[5]), pow(M_E, x[4]), pow(M_E, x[3]), pow(M_E, x[2]), pow(M_E, x[1]), pow(M_E, x[0]));
 }
 #endif
 // print out the SIMD width
@@ -142,6 +173,7 @@ SIMDTYPE exp_ps_fill(SIMDTYPE x)
 #define MULTADD(x, y, z) vmlaq_f32(z, x, y)
 #define REDUCE(x) x[0] + x[1] + x[2] + x[3]
 #define ADD(x, y) vaddq_f32(x, y)
+#define SUBTRACT(x, y) vsubq_f32(x, y)
 #define MAX(x, y) vmaxq_f32(x, y)
 #define DIVIDE(x, y) vdivq_f32(x, y)
 #define SIMDTYPE float32x4_t
@@ -156,9 +188,7 @@ SIMDTYPE exp_ps_fill(SIMDTYPE x)
     return result;
 }
 
-#ifndef ulong
-#define ulong size_t
-#endif
+
 
 #define LOADBF16(x) x
 #define LOADFP32BF16(x) x
@@ -244,12 +274,13 @@ inline void *aligned_alloc(size_t alignment, size_t size)
 #pragma message("No SIMD is supported")
 #define SIMD_WIDTH 1
 #define LOAD(x) *(x)
-#define STORE(x, y) *(x) = y
+#define STORE(x, y) *((float*)x) = y
 #define SET1(x) x
 #define MULTIPLY(x, y) (x * y)
 #define MULTADD(x, y, z) (x * y + z)
 #define ADD(x, y) (x + y)
 #define REDUCE(x) x
+#define SUBTRACT(x, y) (x - y)
 #define MAX(x, y) (x > y ? x : y)
 #define EXP(x) exp(x)
 #define DIVIDE(x, y) (x / y)

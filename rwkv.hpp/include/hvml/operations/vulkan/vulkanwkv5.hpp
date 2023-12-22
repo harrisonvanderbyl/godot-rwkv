@@ -12,10 +12,10 @@ void Tensor<float, HVMLVULKAN>::wkv5(Tensor<float,HVMLVULKAN> &r, Tensor<float,H
         auto uu = u.data;
         auto out = y.data;
 
-        uint B = r.shape[0];
-        uint T = r.shape[1];
-        uint C = r.shape[2];
-        uint H = this->shape[1];
+        uint32_t B = r.shape[0];
+        uint32_t T = r.shape[1];
+        uint32_t C = r.shape[2];
+        uint32_t H = this->shape[1];
 
 
         
