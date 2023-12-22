@@ -80,7 +80,7 @@ void dopartial(MatMulJob job) {
 		const auto Aoioo = _mm512_div_ps(_mm512_load_ps(Ao + ii), Ario);
 		__m512 zz = _mm512_setzero_ps();
 		for (uint32_t i = ii; i < ii + 16; i += 1) {
-			const float Aoio = Aoioo[i & 15];
+			const float Aoio = Aoioo[i & 15]/Ario[i&15];
 
 			__m512 aa = _mm512_setzero_ps();
 			const auto IAINSHAPE = A + i * INSHAPE;
@@ -108,7 +108,7 @@ void dopartial(MatMulJob job) {
 		float zz1[8] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0};
 		
 		for (uint32_t i = ii+b; i < ii + b+8; i += 1) {
-			auto Aoio = SET1(Aoio1[i&7]);
+			auto Aoio = SET1(Aoio1[i&7]/Ario1[i&7]);
 
 			const auto IAINSHAPE = A + i * INSHAPE;
 
