@@ -3,9 +3,10 @@
 
 
 #undef VK_USE_PLATFORM_XLIB_KHR
+
+#include "rwkv.hpp"
 #include "tokenizer/tokenizer.hpp"
 #include "sampler/sample.hpp"
-#include "rwkv.hpp"
 
 
 
