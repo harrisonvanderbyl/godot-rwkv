@@ -33,14 +33,20 @@ struct MatMulJob {
 	const float *Ar;
 	const float *Bt;
 	const float *Ct;
-	const ulong bbt;
-	const ulong ii;
+	ulong bbt;
+	ulong ii;
 	const ulong INSHAPE;
 	const ulong OUTSHAPE;
 	JOBTYPE type = MATMUL;
 	const float *ex = nullptr;
 	const ulong H = 0;
 	const ulong hh = 0;
+
+	// if convert to ulong, then it will be its own address
+	operator ulong() const {
+		return (ulong)this;
+	}
+
 };
 
 // make compatible with compiler
@@ -73,7 +79,7 @@ void dopartial(MatMulJob job) {
 	auto OUTSHAPE = job.OUTSHAPE;
 	auto Ao = job.Ao;
 	auto Ar = job.Ar;
-	auto bbt = job.bbt;
+	auto Batch = job.bbt;
 	auto ii = job.ii;
 	#if defined(__AVX512F__) && defined(HVMLUSEAVX512)
 		const auto Ario = _mm512_load_ps(Ar + ii);
@@ -101,14 +107,17 @@ void dopartial(MatMulJob job) {
 				(void *)(C + bbt * OUTSHAPE + ii),
 				zz * Ario);
 	#elif defined(__AVX2__)
+	for (ulong bbt = 0; bbt < Batch; bbt += 1) {
+		for (ulong dii = ii; dii < OUTSHAPE; dii += 16*16){ 
 		for (ulong b = 0; b < 16; b+= 8){
-		const float* Ario1 = (Ar + ii+b);
-		const float* Aoio1 = (Ao + ii + b);
+		const float* Ario1 = (Ar + dii + b);
+		const float* Aoio1 = (Ao + dii + b);
 
 		float zz1[8] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0};
 		
-		for (uint32_t i = ii+b; i < ii + b+8; i += 1) {
-			auto Aoio = SET1(Aoio1[i&7]/Ario1[i&7]);
+		for (uint32_t i = dii+b; i < dii + b+8; i += 1) {
+			auto Aoio = SET1(Aoio1[i&7]);
+			auto Ario = SET1(Ario1[i&7]);
 
 			const auto IAINSHAPE = A + i * INSHAPE;
 
@@ -118,14 +127,14 @@ void dopartial(MatMulJob job) {
 				// avx2
 				auto w = _mm256_cvtepu8_epi32(_mm_loadu_si128((__m128i *)(IAINSHAPE + k)));  // Load the input uint8_t vector
 				// convert uint32_t to float32x8_t
-				auto u = ADD(_mm256_cvtepi32_ps(w),Aoio);   // Convert uint32_t to float32_t
+				auto u = MULTADD(_mm256_cvtepi32_ps(w),Ario,Aoio);   // Convert uint32_t to float32_t
 				// Load the input float vector
 				// Perform the multiplication with inp vector
 				sum1 = MULTADD(u, LOAD(B + bbt * INSHAPE + k),sum1);
 
 				auto w1 = _mm256_cvtepu8_epi32(_mm_loadu_si128((__m128i *)(IAINSHAPE + k + 8)));  // Load the input uint8_t vector
 
-				auto u1 = ADD(_mm256_cvtepi32_ps(w1),Aoio);   // Convert uint32_t to float32_t
+				auto u1 = MULTADD(_mm256_cvtepi32_ps(w1),Ario,Aoio);   // Convert uint32_t to float32_t
 
 				sum2 = MULTADD(u1, LOAD(B + bbt * INSHAPE + k + 8),sum2);
 				
@@ -139,19 +148,23 @@ void dopartial(MatMulJob job) {
 		}
 
 		
-		STORE(
-				(void *)(C + bbt * OUTSHAPE + ii + b),
-				MULTIPLY(LOAD(zz1) , LOAD(Ario1)));
+			STORE(
+					(void *)(C + bbt * OUTSHAPE + dii + b),
+					LOAD(zz1) );
+			}
 		}
+	}
 
 	#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+	for (ulong bbt = 0; bbt < Batch; bbt += 1) {
+	for (ulong dii = ii; dii < OUTSHAPE; dii += 16*16){ 
 	 	for (ulong b = 0; b < 16; b+= 4){
-		const auto Ario1 = LOAD(Ar + ii+b);
-		const auto Aoio1 = DIVIDE(LOAD(Ao + ii + b),Ario1);
+		const auto Ario1 = LOAD(Ar + dii+b);
+		const auto Aoio1 = DIVIDE(LOAD(Ao + dii + b),Ario1);
 
 		auto zz1 = SET1(0.0);
 
-		for (uint32_t i = ii+b; i < ii + b+4; i += 1) {
+		for (uint32_t i = dii+b; i < dii + b+4; i += 1) {
 			auto Aoio = Aoio1[i&3];
 
 			const auto IAINSHAPE = A + i * INSHAPE;
@@ -183,9 +196,11 @@ void dopartial(MatMulJob job) {
 
 		
 		STORE(
-				(void *)(C + bbt * OUTSHAPE + ii + b),
+				(void *)(C + bbt * OUTSHAPE + dii + b),
 				zz1 * Ario1);
 		}
+	}
+	}
 	#endif
 }
 
@@ -274,18 +289,19 @@ void listenfunc(std::atomic<ulong> *jobs1, std::atomic<ulong> *jobs2) {
 
 			if (current.type == JOBTYPE::RWKV_ATT) {
 				dopartialwkv5att(current);
-				jobs1->store(ZeroLong);
 			} else {
 				dopartial(current);
-				jobs1->store(ZeroLong);
 			}
+
+			jobs1->store(ZeroLong);
 		}
 		const auto current2 = jobs2->load();
 		if (current2 != 0) {
 			const auto current = *(MatMulJob *)current2;
 
 			dopartial(current);
-			jobs2->store(0);
+			jobs2->store(ZeroLong);
+			
 			
 		}
 	}
@@ -330,193 +346,51 @@ void Tensor<uint8_t, HVMLCPU>::matmul(Tensor<float, HVMLCPU> &Art, Tensor<float,
 
 	startWorkers();
 
-	for (uint32_t bbt = 0; bbt < BB * T; bbt += 1) {
-		uint32_t outlayer[16] = {
-			0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0
-		};
-		while ((outlayer[0] <= OUTSHAPE) || (outlayer[1] <= OUTSHAPE) || (outlayer[2] <= OUTSHAPE) || (outlayer[3] <= OUTSHAPE) ||
-				(outlayer[4] <= OUTSHAPE) || (outlayer[5] <= OUTSHAPE) || (outlayer[6] <= OUTSHAPE) || (outlayer[7] <= OUTSHAPE) ||
-				(outlayer[8] <= OUTSHAPE) || (outlayer[9] <= OUTSHAPE) || (outlayer[10] <= OUTSHAPE) || (outlayer[11] <= OUTSHAPE) ||
-				(outlayer[12] <= OUTSHAPE) || (outlayer[13] <= OUTSHAPE) || (outlayer[14] <= OUTSHAPE) || (outlayer[15] <= OUTSHAPE)) {
-			
-			if (outlayer[0] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs10.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[0], INSHAPE, OUTSHAPE })) {
-					outlayer[0] += 16 * 16;
-				}
-			} else {
-				if (jobs10 == ZeroLong) {
-					outlayer[0] += 16 * 16;
-				}
-			}
+	auto job10job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 0, INSHAPE, OUTSHAPE };
+	auto job11job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 16, INSHAPE, OUTSHAPE };
+	auto job12job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 32, INSHAPE, OUTSHAPE };
+	auto job13job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 48, INSHAPE, OUTSHAPE };
+	auto job20job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 64, INSHAPE, OUTSHAPE };
+	auto job21job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 80, INSHAPE, OUTSHAPE };
+	auto job22job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 96, INSHAPE, OUTSHAPE };
+	auto job23job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 112, INSHAPE, OUTSHAPE };
+	auto job30job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 128, INSHAPE, OUTSHAPE };
+	auto job31job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 144, INSHAPE, OUTSHAPE };
+	auto job32job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 160, INSHAPE, OUTSHAPE };
+	auto job33job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 176, INSHAPE, OUTSHAPE };
+	auto job40job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 192, INSHAPE, OUTSHAPE };
+	auto job41job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 208, INSHAPE, OUTSHAPE };
+	auto job42job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 224, INSHAPE, OUTSHAPE };
+	auto job43job = MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, BB*T, 240, INSHAPE, OUTSHAPE };
 
-			if (outlayer[1] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs11.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[1] + 16, INSHAPE, OUTSHAPE })) {
-					outlayer[1] += 16 * 16;
-				}
-			} else {
-				if (jobs11 == ZeroLong) {
-					outlayer[1] += 16 * 16;
-				}
-			}
 
-			if (outlayer[2] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs12.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[2] + 32, INSHAPE, OUTSHAPE })) {
-					outlayer[2] += 16 * 16;
-				}
-			} else {
-				if (jobs12 == ZeroLong) {
-					outlayer[2] += 16 * 16;
-				}
-			}
+		jobs10 = job10job;
+		jobs11 = job11job;
+		jobs12 = job12job;
+		jobs13 = job13job;
+		jobs20 = job20job;
+		jobs21 = job21job;
+		jobs22 = job22job;
+		jobs23 = job23job;
+		jobs30 = job30job;
+		jobs31 = job31job;
+		jobs32 = job32job;
+		jobs33 = job33job;
+		jobs40 = job40job;
+		jobs41 = job41job;
+		jobs42 = job42job;
+		jobs43 = job43job;
 
-			if (outlayer[3] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs13.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[3] + 48, INSHAPE, OUTSHAPE })) {
-					outlayer[3] += 16 * 16;
-				}
-			} else {
-				if (jobs13 == ZeroLong) {
-					outlayer[3] += 16 * 16;
-				}
-			}
-
-			if (outlayer[4] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs20.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[4] + 64, INSHAPE, OUTSHAPE })) {
-					outlayer[4] += 16 * 16;
-				}
-			} else {
-				if (jobs20 == ZeroLong) {
-					outlayer[4] += 16 * 16;
-				}
-			}
-
-			if (outlayer[5] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs21.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[5] + 80, INSHAPE, OUTSHAPE })) {
-					outlayer[5] += 16 * 16;
-				}
-			} else {
-				if (jobs21 == ZeroLong) {
-					outlayer[5] += 16 * 16;
-				}
-			}
-
-			if (outlayer[6] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs22.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[6] + 96, INSHAPE, OUTSHAPE })) {
-					outlayer[6] += 16 * 16;
-				}
-			} else {
-				if (jobs22 == ZeroLong) {
-					outlayer[6] += 16 * 16;
-				}
-			}
-
-			if (outlayer[7] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs23.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[7] + 112, INSHAPE, OUTSHAPE })) {
-					outlayer[7] += 16 * 16;
-				}
-			} else {
-				if (jobs23 == ZeroLong) {
-					outlayer[7] += 16 * 16;
-				}
-			}
-
-			if (outlayer[8] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs30.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[8] + 128, INSHAPE, OUTSHAPE })) {
-					outlayer[8] += 16 * 16;
-				}
-			} else {
-				if (jobs30 == ZeroLong) {
-					outlayer[8] += 16 * 16;
-				}
-			}
-
-			if (outlayer[9] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs31.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[9] + 144, INSHAPE, OUTSHAPE })) {
-					outlayer[9] += 16 * 16;
-				}
-			} else {
-				if (jobs31 == ZeroLong) {
-					outlayer[9] += 16 * 16;
-				}
-			}
-
-			if (outlayer[10] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs32.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[10] + 160, INSHAPE, OUTSHAPE })) {
-					outlayer[10] += 16 * 16;
-				}
-			} else {
-				if (jobs32 == ZeroLong) {
-					outlayer[10] += 16 * 16;
-				}
-			}
-
-			if (outlayer[11] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs33.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[11] + 176, INSHAPE, OUTSHAPE })) {
-					outlayer[11] += 16 * 16;
-				}
-			} else {
-				if (jobs33 == ZeroLong) {
-					outlayer[11] += 16 * 16;
-				}
-			}
-
-			if (outlayer[12] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs40.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[12] + 192, INSHAPE, OUTSHAPE })) {
-					outlayer[12] += 16 * 16;
-				}
-			} else {
-				if (jobs40 == ZeroLong) {
-					outlayer[12] += 16 * 16;
-				}
-			}
-
-			if (outlayer[13] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs41.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[13] + 208, INSHAPE, OUTSHAPE })) {
-					outlayer[13] += 16 * 16;
-				}
-			} else {
-				if (jobs41 == ZeroLong) {
-					outlayer[13] += 16 * 16;
-				}
-			}
-
-			if (outlayer[14] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs42.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[14] + 224, INSHAPE, OUTSHAPE })) {
-					outlayer[14] += 16 * 16;
-				}
-			} else {
-				if (jobs42 == ZeroLong) {
-					outlayer[14] += 16 * 16;
-				}
-			}
-
-			if (outlayer[15] < OUTSHAPE) {
-				auto cmp = ZeroLong;
-				if (jobs43.compare_exchange_strong(cmp, (ulong) new MatMulJob{ A, B, C, Ao, Ar, Bt.data, Ct.data, bbt, outlayer[15] + 240, INSHAPE, OUTSHAPE })) {
-					outlayer[15] += 16 * 16;
-				}
-			} else {
-				if (jobs43 == ZeroLong) {
-					outlayer[15] += 16 * 16;
-				}
-			}
+		while (
+				jobs10 != 0 | jobs11 != 0 | jobs12 != 0 | jobs13 != 0 |
+				jobs20 != 0 | jobs21 != 0 | jobs22 != 0 | jobs23 != 0 |
+				jobs30 != 0 | jobs31 != 0 | jobs32 != 0 | jobs33 != 0 |
+				jobs40 != 0 | jobs41 != 0 | jobs42 != 0 | jobs43 != 0) {
 		}
-	}
+		
+	
+		
+
 }
 
 template <>

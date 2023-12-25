@@ -88,20 +88,6 @@ class RWKV_5_ATT
             auto r = this->receptance(this->buffer);
             this->time_mix_g.lerp(xx, input, this->buffer);
             auto gv = this->gate(this->buffer);
-
-            // k.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
-            // v.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
-            // r.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
-            // gv.unsafereshape({input.shape[0], input.shape[1], input.shape[2]});
-
-            // matmul(
-            //     this->key.weight,this->key.range,this->key.offset,this->buffer,k,
-            //     this->value.weight,this->value.range,this->value.offset,this->buffer1,v,
-            //     this->receptance.weight,this->receptance.range,this->receptance.offset,this->buffer2,r,
-            //     this->gate.weight,this->gate.range,this->gate.offset,this->buffer3,gv
-            // );
-
-
     
             this->state.wkv5(r,k,v,this->time_decay,this->time_faaaa, this->buffer);
           
