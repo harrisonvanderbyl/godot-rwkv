@@ -612,25 +612,25 @@ public:
             bfloat16 *A = (bfloat16 *)this->data;
 // Parallel computation
 // #pragma omp parallel for collapse(2) schedule(dynamic, 32) shared(A, B, C)
-            for (long i = 0; i < OUTSHAPE; i += 1)
-            {
+//             for (long i = 0; i < OUTSHAPE; i += 1)
+//             {
 
-                for (long bbj = 0; bbj < BBT; bbj += 1)
-                {
+//                 for (long bbj = 0; bbj < BBT; bbj += 1)
+//                 {
 
-                    auto acc = SET1(0.0f);
-// #pragma unroll(16)
-                    for (long k = 0; k < INSHAPE; k += 32) // let intrinsics handle the unrolling
-                    {
+//                     auto acc = SET1(0.0f);
+// // #pragma unroll(16)
+//                     for (long k = 0; k < INSHAPE; k += 32) // let intrinsics handle the unrolling
+//                     {
 
-                        acc = DOTBF16(
-                            LOADBF16(&A[i * INSHAPE + k]),
-                            LOADFP32BF16(B + bbj * INSHAPE + k),
-                            acc);
-                    }
-                    C[bbj * OUTSHAPE + i] = REDUCE(acc);
-                }
-            }
+//                         acc = DOTBF16(
+//                             LOADBF16(&A[i * INSHAPE + k]),
+//                             LOADFP32BF16(B + bbj * INSHAPE + k),
+//                             acc);
+//                     }
+//                     C[bbj * OUTSHAPE + i] = REDUCE(acc);
+//                 }
+//             }
         }
         else
         {

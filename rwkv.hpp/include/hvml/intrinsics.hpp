@@ -212,20 +212,8 @@ SIMDTYPE exp_ps_fill(SIMDTYPE x)
 
 #define DOTBF16F32(x, y, acc) (MULTADD(LOAD(x), LOAD(y), MULTADD(LOAD(x + 4), LOAD(y + 4), MULTADD(LOAD(x + 8), LOAD(y + 8), MULTADD(LOAD(x + 12), LOAD(y + 12), MULTADD(LOAD(x + 16), LOAD(y + 16), MULTADD(LOAD(x + 20), LOAD(y + 20), MULTADD(LOAD(x + 24), LOAD(y + 24), MULTADD(LOAD(x + 28), LOAD(y + 28), acc)))))))))
 
-#ifndef aligned_alloc
-#ifdef __GNUC__
-#define ALIGNMENT 16
-
-inline void *aligned_alloc(size_t alignment, size_t size)
-{
-    void *ptr = nullptr;
-    int result = posix_memalign(&ptr, alignment, size);
-    return (result == 0) ? ptr : nullptr;
-}
-#else
-#error "aligned_alloc is not supported by this compiler"
-#endif
-#endif
+// remove aligned alloc for arm
+#define aligned_alloc(alignment, size) malloc(size)
 
 #define UINT8SIMDWIDTH 8
 // #define UINT8POSTREDUCE(x) (float)(x)

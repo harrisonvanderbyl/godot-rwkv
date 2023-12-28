@@ -30,12 +30,10 @@ namespace safetensors {
 
     public:
 
-        const std::unordered_map<std::string, const metadata_t> metas;
+        std::unordered_map<std::string, const metadata_t> metas;
         
-        safetensors_t(std::unordered_map<std::string, const metadata_t> &metasa, std::vector<char> &storagea)
-            : metas(metasa), storage(storagea) {}
-
-        const std::vector<char> storage;
+       
+        const char* storage = nullptr;
         /**
          *
          * @return
@@ -94,62 +92,61 @@ namespace safetensors {
         inline bool contains(std::string name) const {
             return contains(name.c_str());
         }
-    };
 
-    /**
-     *
-     * @param in
-     * @return
-     */
-    safetensors_t deserialize(std::basic_istream<char> &in);
+        safetensors_t(){};
+
+        safetensors_t(std::basic_istream<char> &in) {
+                uint64_t header_size = 0;
+
+                // todo: handle exception
+                in.read(reinterpret_cast<char *>(&header_size), sizeof header_size);
+
+                std::vector<char> meta_block(header_size);
+                in.read(meta_block.data(), static_cast<std::streamsize>(header_size));
+                const auto metadatas = json::parse(meta_block);
+
+                // How many bytes remaining to pre-allocate the storage tensor
+                in.seekg(0, std::ios::end);
+                std::streamsize f_size = in.tellg();
+                in.seekg(8 + header_size, std::ios::beg);
+                const auto tensors_size = f_size - 8 - header_size;
+
+                metas = std::unordered_map<std::string, const metadata_t>(metadatas.size());
+                // allocate in a way that prevents it from being freed
+                storage = new char[tensors_size];
+                
+
+                // Read the remaining content
+                in.read((char*)storage, static_cast<std::streamsize>(tensors_size));
+
+                // Populate the meta lookup table
+                if (metadatas.is_object()) {
+                    for (auto &item: metadatas.items()) {
+                        if (item.key() != "__metadata__") {
+                            const auto name = std::string(item.key());
+                            const auto& info = item.value();
+
+                            const metadata_t meta = {info["dtype"].get<TENSORTYPE>(), info["shape"], info["data_offsets"]};
+                            metas.insert(std::pair<std::string, safetensors::metadata_t>(name, meta));
+                        }
+                    }
+                }
+
+            }
+
+            };
+
 }
 
 namespace safetensors {
 
-    safetensors_t deserialize(std::basic_istream<char> &in) {
-        uint64_t header_size = 0;
-
-        // todo: handle exception
-        in.read(reinterpret_cast<char *>(&header_size), sizeof header_size);
-
-        std::vector<char> meta_block(header_size);
-        in.read(meta_block.data(), static_cast<std::streamsize>(header_size));
-        const auto metadatas = json::parse(meta_block);
-
-        // How many bytes remaining to pre-allocate the storage tensor
-        in.seekg(0, std::ios::end);
-        std::streamsize f_size = in.tellg();
-        in.seekg(8 + header_size, std::ios::beg);
-        const auto tensors_size = f_size - 8 - header_size;
-
-        auto metas_table = std::unordered_map<std::string, const metadata_t>(metadatas.size());
-        auto tensors_storage = std::vector<char>(tensors_size);
-
-        // Read the remaining content
-        in.read(tensors_storage.data(), static_cast<std::streamsize>(tensors_size));
-
-        // Populate the meta lookup table
-        if (metadatas.is_object()) {
-            for (auto &item: metadatas.items()) {
-                if (item.key() != "__metadata__") {
-                    const auto name = std::string(item.key());
-                    const auto& info = item.value();
-
-                    const metadata_t meta = {info["dtype"].get<TENSORTYPE>(), info["shape"], info["data_offsets"]};
-                    metas_table.insert(std::pair<std::string, safetensors::metadata_t>(name, meta));
-                }
-            }
-        }
-
-        return {metas_table, tensors_storage};
-    }
-
+    
     
 
     
     Tensor<float> safetensors_t::operator[](const char *name) const {
         const auto& meta = metas.at(name);
-        char* data_begin = const_cast<char*>(storage.data()) + meta.data_offsets.first;
+        char* data_begin = const_cast<char*>(storage) + meta.data_offsets.first;
         // char* data_end = const_cast<char*>(storage.data()) + meta.data_offsets.second;
         if (meta.dtype == TENSORTYPE::kFLOAT_32){
             auto data =  Tensor<float>(meta.shape,(float*)data_begin);
@@ -167,7 +164,7 @@ namespace safetensors {
     
     Tensor<bfloat16> safetensors_t::getBF16(const char *name) {
         const auto& meta = metas.at(name);
-        char* data_begin = const_cast<char*>(storage.data()) + meta.data_offsets.first;
+        char* data_begin = const_cast<char*>(storage) + meta.data_offsets.first;
         // char* data_end = const_cast<char*>(storage.data()) + meta.data_offsets.second;
         if (meta.dtype == TENSORTYPE::kFLOAT_32){
             // throw std::runtime_error("Unsupported type, try []");
@@ -189,31 +186,32 @@ namespace safetensors {
 
     Tensor<uint8_t> safetensors_t::getUCHAR(const char *name) {
         const auto& meta = metas.at(name);
-        char* data_begin = const_cast<char*>(storage.data()) + meta.data_offsets.first;
+        u_int8_t* data_begin = (u_int8_t*)(storage) + meta.data_offsets.first;
         // char* data_end = const_cast<char*>(storage.data()) + meta.data_offsets.second;
         if (meta.dtype == TENSORTYPE::kFLOAT_32){
             // throw std::runtime_error("Unsupported type, try []");
             std::cout << "Unsupported type on getChar "+std::string(name)+", try .getfloat(), data type is "+std::to_string(meta.dtype) << std::endl;
-            return Tensor<uint8_t>(meta.shape);
+            // return Tensor<uint8_t>(meta.shape);
         }
         if (meta.dtype == TENSORTYPE::kBFLOAT_16){
             // throw std::runtime_error("Unsupported type on getChar, try .getBfloat16()");
             std::cout << "Unsupported type on getChar "+std::string(name)+", try .getBfloat16(), data type is "+std::to_string(meta.dtype) << std::endl;
-            return Tensor<uint8_t>(meta.shape);
+            // return Tensor<uint8_t>(meta.shape);
         }
         if (meta.dtype == TENSORTYPE::kUINT_8){
-            auto data =  Tensor<uint8_t>(meta.shape,(uint8_t*)data_begin);
-            auto out = Tensor<uint8_t>(meta.shape);
+            auto data =  Tensor<uint8_t>(meta.shape,data_begin);
+            // auto out = Tensor<uint8_t>(meta.shape);
             // clone all data from data_begin to out.data
             // std::cout << "data size in bytes: " << data.data_size_in_bytes << std::endl;
             // std::cout << "shape: " << data.shape[0] << ":" << data.shape[1] << std::endl;
-            memcpy(out.data, data.data, out.data_size_in_bytes);
-            return out;
+            // memcpy(out.data, data.data, out.data_size_in_bytes);
+            return data;
         }
 
         // throw std::runtime_error("Unsupported type, try []");
         std::cout << "Unsupported type on getChar "+std::string(name)+", try .getfloat(), data type is "+std::to_string(meta.dtype) << std::endl;
-        return Tensor<uint8_t>(meta.shape);
+        auto out = Tensor<uint8_t>(meta.shape);
+        return out;
     }
 
     // Tensor<bfloat16> safetensors_t::operator[](const char *name) const {

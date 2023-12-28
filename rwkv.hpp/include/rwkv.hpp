@@ -14,6 +14,7 @@ class RWKV
     LayerNorm ln_out;
     Linear output;
     std::vector<Block> blocks;
+    safetensors::safetensors_t model;
 
 public:
     ulong layers;
@@ -24,7 +25,7 @@ public:
         max_batch_seq = max_batch * max_seq;
         std::ifstream inFile;
         inFile.open(path, std::ios::binary);
-        auto model = safetensors::deserialize(inFile);
+        model = safetensors::safetensors_t(inFile);
         
         // for (auto key : model.keys())
         // {
