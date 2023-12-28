@@ -403,6 +403,8 @@ void Tensor<float, HVMLCPU>::wkv5(Tensor<float, HVMLCPU> &r, Tensor<float, HVMLC
 	auto ss = this->data;
 	auto out = y.data;
 
+	startWorkers();
+
 	uint32_t B = r.shape[0];
 	uint32_t T = r.shape[1];
 	uint32_t C = r.shape[2];

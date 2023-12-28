@@ -38,14 +38,15 @@ class Linear
                 const auto& meta = model.metas.at(prefix + ".weight");
             
                 if (meta.dtype == TENSORTYPE::kBFLOAT_16){
-                    // this->weight = model.getBF16(prefix + ".weight");
-                    // this->isbf16 = true;
+                    auto temp = model.getBF16(prefix + ".weight");
+                    this->weight = *(Tensor<u_char>*)(&temp);
+                    this->isbf16 = true;
                 }
                 else{
                     // std::cout << "Exception:" << e.what() << std::endl;
                     // std::cout << "Linear:" << prefix << " is not BF16" << std::endl;
-                    // auto temp = model[prefix + ".weight"];
-                    // this->weight = temp;
+                    auto temp = model[prefix + ".weight"];
+                    this->weight = *(Tensor<u_char>*)(&temp);
                     // this->isbf16 = false;
                     
                 }
@@ -110,9 +111,9 @@ class Linear
                 }
                 else{
                     auto mbuff = Tensor<float>({input.shape[0], input.shape[1], this->weight.shape[0]},
-                        0.0f);
+                        this->buffer.data);
                     if(this->isbf16){
-                        // ((Tensor<bfloat16>*)(&this->weight))->matmul(input, mbuff, true);
+                        ((Tensor<bfloat16>*)(&this->weight))->matmul(input, mbuff, true);
                     }
                     else{
                         if (this->onGPU){
@@ -126,7 +127,7 @@ class Linear
                             // return mbuff;
                         }
                         else{                        
-                            // ((Tensor<float>*)(&this->weight))->matmul(input, mbuff);
+                            ((Tensor<float>*)(&this->weight))->matmul(input, mbuff,false);
                         }
                     }
                     return mbuff;

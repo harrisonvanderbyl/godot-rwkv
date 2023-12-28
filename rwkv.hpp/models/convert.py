@@ -3,7 +3,7 @@ import torch
 
 
 # change path to your model
-path = "./rwkv-26.pth"
+path = "./1B5.pth"
 model = torch.load(path, "cpu")
 
 from torch.utils.cpp_extension import load
@@ -30,6 +30,8 @@ avx512 = "avx512" in cpuinfo.get_cpu_info_json()
 avx2 = "avx2" in cpuinfo.get_cpu_info_json()
 neon = "neon" in cpuinfo.get_cpu_info_json()
 
+# float32= Tensor(-0.477592, -9.87757, -10.544, -9.66997, , ..., -23.7958, -23.7907, -23.739, -23.7474, shape=(1, 18, 65536))
+
 
 import tqdm as tqdm
 keys = [*model.keys()]
@@ -47,7 +49,7 @@ for key in tqdm.tqdm(keys):
                 model[key] = (torch.zeros(weight.shape[1],weight.shape[0]).to(torch.uint8))
                 model[key+".range"] = (torch.zeros(weight.shape[1]))
                 model[key+".zero"] = (torch.zeros(weight.shape[1]))
-                quant_cpp.quantize_cpu(weight.t().contiguous(), model[key+".range"] , model[key+".zero"],model[key], weight.shape[1], weight.shape[0])
+                quant_cpp.quantize_cpu(weight.t().contiguous(), model[key+".range"] , model[key+".zero"],model[key], weight.shape[1], weight.shape[0], True)
                 # model[key] = model[key].t().contiguous().cpu()
             else:
                 model[key] = model[key].float().clone().cpu()

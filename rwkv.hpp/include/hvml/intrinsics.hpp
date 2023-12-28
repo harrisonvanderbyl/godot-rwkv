@@ -144,13 +144,26 @@ SIMDTYPE exp_ps_fill(SIMDTYPE y)
 
 #define LOADBF16(x) x
 #define LOADFP32BF16(x) x
+#define bf16_to_fp32(x) (__m256) _mm256_slli_epi32(_mm256_cvtepi16_epi32(*(__m128i *)(x)), 16)
 
 // convert bf16 to fp32 by going uint16 -> int32(uint16, zeros) -> cast to float
-#define bf16_to_fp32(x) (__m256) _mm256_slli_epi32(_mm256_cvtepi16_epi32(*(__m128i *)(x)), 16)
+#if defined(__AVX512BF16__)
+
+#define LOADBF16(x) (__m256bh) _mm256_loadu_si256((__m256i *)x)
+
+#define fp32_to_bf16(x) (__m256bh) _mm256_cvtne2ps_pbh(LOAD(x), LOAD(x + 8))
+
+#define DOTBF16(x, y, acc) (_mm256_dpbf16_ps(acc, x, y))
+
+#define DOTBF16F32(x, y, acc) (_mm256_dpbf16_ps(acc, LOADBF16(x), fp32_to_bf16(y)))
+
+#else
 
 #define DOTBF16(x, y, acc) (_mm256_fmadd_ps(bf16_to_fp32(x + 16), LOAD(y), _mm256_fmadd_ps(bf16_to_fp32(x + 24), LOAD(y + 8), _mm256_fmadd_ps(bf16_to_fp32(x), LOAD(y + 16), _mm256_fmadd_ps(bf16_to_fp32(x + 8), LOAD(y + 24), acc)))))
 
 #define DOTBF16F32(x, y, acc) (_mm256_fmadd_ps(LOAD(x), LOAD(y), _mm256_fmadd_ps(LOAD(x + 8), LOAD(y + 8), _mm256_fmadd_ps(LOAD(x + 16), LOAD(y + 16), _mm256_fmadd_ps(LOAD(x + 24), LOAD(y + 24), acc)))))
+
+#endif
 
 #define UINT8SIMDWIDTH SIMD_WIDTH
 #define UINT8TOFLOAT32(x) _mm256_cvtepi32_ps(_mm256_cvtepu8_epi32(_mm_loadu_si64(x)))
