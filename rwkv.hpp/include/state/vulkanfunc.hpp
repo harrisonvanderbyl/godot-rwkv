@@ -44,7 +44,7 @@ namespace vuda
                 }
             }
 
-            throw std::runtime_error("vuda: could not find any family queue with all flags requested!");
+            RWKVTHROW(std::runtime_error("vuda: could not find any family queue with all flags requested!"));
         }
 
         class VudaMemoryProperties
@@ -87,7 +87,7 @@ namespace vuda
                         return m_deviceMemoryProperties.memoryHeaps[heap].size;
                     }
                 }
-                throw std::runtime_error("vuda: there must be at least one memory type with the VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT bit set in its propertyFlags!");
+                RWKVTHROW(std::runtime_error("vuda: there must be at least one memory type with the VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT bit set in its propertyFlags!"));
             }
 
             inline int32_t FindMemoryTypeFromCandidates(const vk::Device& device, const std::vector<vk::MemoryPropertyFlags>& candidates, vk::MemoryPropertyFlags& candidate) const
@@ -117,7 +117,7 @@ namespace vuda
                     There must be at least one memory type with both the VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT and VK_MEMORY_PROPERTY_HOST_COHERENT_BIT bits set in its propertyFlags.
                     There must be at least one memory type with the VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT bit set in its propertyFlags.
                 */
-                throw std::runtime_error("Failed to find suitable memory type!");
+                RWKVTHROW(std::runtime_error("Failed to find suitable memory type!"));
             }
 
         private:

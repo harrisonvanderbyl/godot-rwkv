@@ -72,7 +72,7 @@ namespace vuda
             {
                 std::ostringstream ostr;
                 ostr << "vuda: virtual memory reservation failed with: " << GetLastErrorAsString().c_str() << std::endl;
-                throw std::runtime_error(ostr.str());
+                RWKVTHROW(std::runtime_error(ostr.str()));
             }
 
             return lp;
@@ -88,7 +88,7 @@ namespace vuda
             {
                 std::ostringstream ostr;
                 ostr << "vuda: failed to free virtual memory reservation at " << addr << " of length " << length << "!";
-                throw std::runtime_error(ostr.str());
+                RWKVTHROW(std::runtime_error(ostr.str()));
             }
         }
 
@@ -132,7 +132,7 @@ namespace vuda
             {
                 std::ostringstream ostr;
                 ostr << "vuda: virtual memory reservation failed" << /*"with: " << get_errno() <<*/ std::endl;
-                throw std::runtime_error(ostr.str());
+                RWKVTHROW(std::runtime_error(ostr.str()));
             }
 
             return ptr;
@@ -146,7 +146,7 @@ namespace vuda
             {
                 std::ostringstream ostr;
                 ostr << "vuda: failed to free virtual memory reservation at " << addr << " of length " << length << /*"with: " << get_errno() <<*/ std::endl;
-                throw std::runtime_error(ostr.str());
+                RWKVTHROW(std::runtime_error(ostr.str()));
             }
         }
 

@@ -188,7 +188,23 @@ SIMDTYPE exp_ps_fill(SIMDTYPE y)
 #define ADD(x, y) vaddq_f32(x, y)
 #define SUBTRACT(x, y) vsubq_f32(x, y)
 #define MAX(x, y) vmaxq_f32(x, y)
+// if armv7, fill divide with software implementation
+#if defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7S__) || defined(__ARM_ARCH_7__)
+#pragma message("ARM NEON divide is not supported, doing fallback")
+#define DIVIDE(x, y) divide(x, y)
+float32x4_t divide(float32x4_t x, float32x4_t y)
+{
+    // set output to 0
+    float32x4_t result = SET1(0.0f);
+    for (int i = 0; i < SIMD_WIDTH; i++)
+    {
+        result[i] = x[i] / y[i];
+    }
+    return result;
+}
+#else
 #define DIVIDE(x, y) vdivq_f32(x, y)
+#endif
 #define SIMDTYPE float32x4_t
 #define EXP(x) exp_ps_fill(x)
 SIMDTYPE exp_ps_fill(SIMDTYPE x)

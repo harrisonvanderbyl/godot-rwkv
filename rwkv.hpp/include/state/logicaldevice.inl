@@ -267,7 +267,7 @@ namespace vuda
             // check whether the memory exists on the set device
             default_storage_node* node = m_storage.search(m_storageBST_root, devPtr);
             if(node == nullptr)
-                throw std::runtime_error("vuda: Failed to find memory on the specified device!");
+                RWKVTHROW(std::runtime_error("vuda: Failed to find memory on the specified device!"));
                 
             /*ostr << std::this_thread::get_id() << ": destroying memory with ptr: " << devPtr << ", node: " << node << std::endl;
             std::cout << ostr.str();
@@ -503,7 +503,7 @@ namespace vuda
                 assert(src_ptr != nullptr);
 
                 if(src_ptr->IsHostVisible() == false)
-                    throw std::runtime_error("vuda: the source must be a pointer to host visible memory!");
+                    RWKVTHROW(std::runtime_error("vuda: the source must be a pointer to host visible memory!"));
 
                 //
                 // if the source is non-coherent the CPU writes to the mapped buffer must be flushed before the GPU can read it
@@ -642,7 +642,7 @@ namespace vuda
                 //
                 // make sure the memory is a host visible memory target
                 if(dst_ptr->IsHostVisible() == false)
-                    throw std::runtime_error("vuda: the destination must be a pointer to host visible memory!");
+                    RWKVTHROW(std::runtime_error("vuda: the destination must be a pointer to host visible memory!"));
 
                 assert(count <= dst_ptr->GetSize());
 
@@ -937,7 +937,7 @@ namespace vuda
             std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
             if(!file.is_open())
-                throw std::runtime_error("Failed to open shader file!");
+                RWKVTHROW(std::runtime_error("Failed to open shader file!"));
 
             size_t fileSize = (size_t)file.tellg();
             std::vector<char> buffer(fileSize);

@@ -12,21 +12,22 @@ using namespace std;
 
 // #include <vuda_runtime.hpp>
 // test if vulkan is enabled by seeing if <vulkan/vulkan.h> exists
-#if __has_include(<vulkan/vulkan.h>)
+// if arm64 or arm32, then vulkan is not enabled
+#if __has_include(<vulkan/vulkan.h>) && !defined(__aarch64__) && !defined(__arm64__) && !defined(__arm__) && !defined(__aarch32__) && !defined(__arm32__)
     #include <vuda_runtime.hpp>
 #else
     #pragma message("Vulkan library not found, not building with vulkan")
     #define cudaGetErrorString(x) "error"
-    #define cudaMemcpy(...) "error"; throw std::runtime_error("Not built with vulkan");
-    #define cudaMalloc(...) "error"; throw std::runtime_error("Not built with vulkan");
+    #define cudaMemcpy(...) "error"; RWKVTHROW(std::runtime_error("Not built with vulkan"));
+    #define cudaMalloc(...) "error"; RWKVTHROW(std::runtime_error("Not built with vulkan"));
     #define cudaSuccess 0
     #define cudaError_t int
-    #define cudaMallocManaged(x) "error"; throw std::runtime_error("Not built with vulkan");
-    #define cudaSetDevice(x) "error"; throw std::runtime_error("Not built with vulkan");
+    #define cudaMallocManaged(x) "error"; RWKVTHROW(std::runtime_error("Not built with vulkan"));
+    #define cudaSetDevice(x) "error"; RWKVTHROW(std::runtime_error("Not built with vulkan"));
     #define vuda 0;std
-    #define streamSynchronize cout << "error"; throw std::runtime_error("Not built with vulkan");
-    #define launchKernel(...) cout << "error"; throw std::runtime_error("Not built with vulkan");
-    #define dim3(...) cout << "error"; throw std::runtime_error("Not built with vulkan");
+    #define streamSynchronize cout << "error"; RWKVTHROW(std::runtime_error("Not built with vulkan"));
+    #define launchKernel(...) cout << "error"; RWKVTHROW(std::runtime_error("Not built with vulkan"));
+    #define dim3(...) cout << "error"; RWKVTHROW(std::runtime_error("Not built with vulkan"));
     #define dim3 cout << "error"; 
 #endif
 
@@ -214,7 +215,7 @@ public:
         }
         else
         {
-            throw std::runtime_error("Unknown type");
+            // throw std::runtime_error("Unknown type");
         }
     }
 
@@ -664,7 +665,7 @@ public:
             return (Tensor<DataType, HVMLCPU>*)this;
         }
         else{
-            throw std::runtime_error("Not implemented");
+            // throw std::runtime_error("Not implemented");
         }
         
     }
@@ -1136,7 +1137,7 @@ if (this->device.device_type.i == KHVMLCPU.i){
     {
         if (this->shape.size() != 0)
         {
-            throw std::runtime_error("Tensor is not a scalar");
+            // throw std::runtime_error("Tensor is not a scalar");
         }
         return this->data[0];
     }

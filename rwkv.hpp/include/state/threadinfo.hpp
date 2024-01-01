@@ -48,7 +48,7 @@ namespace vuda
                 if(search == get().end())
                 {
                     std::stringstream ostr; ostr << "The thread " << tid << " has not been assigned a device!";
-                    throw std::runtime_error(ostr.str());
+                    RWKVTHROW(std::runtime_error(ostr.str()));
                 }
             #endif
 

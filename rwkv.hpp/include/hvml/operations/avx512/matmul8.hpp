@@ -280,6 +280,8 @@ void dopartialwkv5att(MatMulJob job) {
 void listenfunc(std::atomic<ulong> *jobs1, std::atomic<ulong> *jobs2) {
 	// wait for all jobs to be done
 	while (true) {
+		// wait 5 microsecs
+		
 		// check if all jobs are done
 
 		// get last job

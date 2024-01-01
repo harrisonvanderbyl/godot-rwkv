@@ -1,6 +1,11 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+
+// if exceptions disabled, then ignore
+#define RWKVTHROW(x) std::cout << "error" << std::endl;
+
+
 #include "safetensors/safetensors.hpp"
 #include "modules/embedding.hpp"
 #include "modules/layernorm.hpp"

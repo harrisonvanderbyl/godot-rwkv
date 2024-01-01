@@ -38,16 +38,16 @@ int main( int argc, char** argv ){
     std::cout << "Model loaded" << std::endl;
     
 
-    auto logits = model({tokens});
+    // auto logits = model({tokens});
 
-    std::cout << logits << std::endl;
+    // std::cout << logits << std::endl;
 
-    model.set_state(model.new_state());
+    // model.set_state(model.new_state());
 
 
     // model.toVulkan();
 
-    logits = model({tokens});
+    auto logits = model({tokens});
 
     std::cout << logits << std::endl;
 

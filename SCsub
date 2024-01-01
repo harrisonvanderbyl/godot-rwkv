@@ -15,17 +15,41 @@ if(env["PLATFORM"] != "win32"):
     env_rwkv.add_source_files(env.modules_sources, "*.cpp")
     
     # add -march=avx512
-    env_rwkv.Append(CCFLAGS=['-march=haswell'])
+    print(env["platform"])
+    if env["platform"] == "linuxbsd":
+        print("Using linuxbsd")
+        env_rwkv.Append(CCFLAGS=['-march=haswell'])
+        env_rwkv.Append(CCFLAGS=['-fexceptions'])
+        # add -O3
+        env_rwkv.Append(CCFLAGS=['-O3'])
+        
+        # add fast math
+        env_rwkv.Append(CCFLAGS=['-ffast-math'])
+   
+    else:
+        # arm
+        print(env["platform"])
+        print(env["arch"])
+        if env["arch"] == "arm32":
+            print("arm32")
+            
+                 
+            # env_rwkv.Append(CCFLAGS=['-march=armv8-a+simd'])
+            # clang, dont use march
+            # env_rwkv.Append(CCFLAGS=['-mpfu=neon-fp-armv7'])
+            
+        else:
+            print("arm64")
+            
+            # env_rwkv.Append(CCFLAGS=['-march=armv8.2-a+simd+crypto'])
+            
+            # armv8
+            # env_rwkv.Append(CCFLAGS=['-mfpu=neon-fp-armv8'])
     
     # -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL
     
-    env_rwkv.Append(CCFLAGS=['-fexceptions'])
-   
-    # add -O3
-    env_rwkv.Append(CCFLAGS=['-O3'])
     
-    # add fast math
-    env_rwkv.Append(CCFLAGS=['-ffast-math'])
+    
     
     
     

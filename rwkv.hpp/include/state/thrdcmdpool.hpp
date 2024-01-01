@@ -113,7 +113,7 @@ namespace vuda
                 vk::Result res =
                 device->getQueryPoolResults(m_queryPool.get(), queryID, numQueries, size, &result[0], stride, vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
                 if (res != vk::Result::eSuccess)
-                    throw std::runtime_error("failed to get query pool results!");
+                    RWKVTHROW(std::runtime_error("failed to get query pool results!"));
 
                 return result[0];
             }
@@ -366,10 +366,10 @@ namespace vuda
                     // for now just wait for the queue to become idle
                     vk::Result res = device->waitForFences(1, &m_ufences[stream].get(), VK_FALSE, (std::numeric_limits<uint64_t>::max)());
                     if (res != vk::Result::eSuccess)
-                        throw std::runtime_error("failed to wait for fence!");
+                        RWKVTHROW(std::runtime_error("failed to wait for fence!"));
                     auto result = device->resetFences(1, &m_ufences[stream].get());
                     if (result != vk::Result::eSuccess)
-                        throw std::runtime_error("failed to reset fence!");
+                        RWKVTHROW(std::runtime_error("failed to reset fence!"));
 
                     //
                     // reset command buffer
