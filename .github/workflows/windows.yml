@@ -29,6 +29,14 @@ jobs:
         with:
           path: modules/rwkv
 
+
+        # init submodules in the rwkv module
+      - name: Init submodules
+        run: |
+          cd modules/rwkv
+          git submodule update --init --recursive
+          cd ../..
+
       - name: Prepare Vulkan SDK
         uses: humbletim/setup-vulkan-sdk@v1.2.0
         with:
