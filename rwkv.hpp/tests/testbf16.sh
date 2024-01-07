@@ -1,1 +1,0 @@
-g++ ./bf16test.cpp -o ./testbf16 -g -march=native -O3 -std=c++17 -fopenmp  -flto  -fopenmp -funroll-loops -D_GLIBCXX_PARALLEL -I../include

@@ -12,13 +12,17 @@ cenv = os.getcwd()
 if(env["PLATFORM"] != "win32"):
     
 
+    # add rwkv.cuh/src/cpuops.cpp
+    env_rwkv.add_source_files(env.modules_sources, "./rwkv.cuh/src/cpuops.cpp")
+    
     env_rwkv.add_source_files(env.modules_sources, "*.cpp")
+    
+    
     
     # add -march=avx512
     print(env["platform"])
     if env["platform"] == "linuxbsd":
         print("Using linuxbsd")
-        env_rwkv.Append(CCFLAGS=['-march=haswell'])
         env_rwkv.Append(CCFLAGS=['-fexceptions'])
         # add -O3
         env_rwkv.Append(CCFLAGS=['-O3'])
@@ -57,17 +61,17 @@ if(env["PLATFORM"] != "win32"):
     # get current file location
     __file__ = env_rwkv.File('./SCsub').abspath
     path = os.path.dirname(os.path.abspath(__file__))
-    env_rwkv.Append(CPPPATH=[path + "/rwkv.hpp/include"])
+    env_rwkv.Append(CPPPATH=[path + "/rwkv.cuh/include"])
 
 else:
     env_rwkv.Append(CCFLAGS=['/O2'])
     env_rwkv.Append(CCFLAGS=['/EHsc'])
     
-    # add ./rwkv.hpp/include to include path
+    # add ./rwkv.cuh/include to include path
     # get current file location in scope of scons
     __file__ = env_rwkv.File('./SCsub').abspath
     path = os.path.dirname(os.path.abspath(__file__))
-    env_rwkv.Append(CPPPATH=[path + "/rwkv.hpp/include"])
+    env_rwkv.Append(CPPPATH=[path + "/rwkv.cuh/include"])
     
     # set avx512 
     env_rwkv.Append(CCFLAGS=['/arch:AVX2'])

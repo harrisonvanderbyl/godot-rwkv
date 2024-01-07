@@ -5,9 +5,9 @@
 #undef VK_USE_PLATFORM_XLIB_KHR
 
 
-#include "rwkv.hpp"
+#include "rwkv.h"
 #include "tokenizer/tokenizer.hpp"
-#include "sampler/sample.hpp"
+#include "sampler/sample.h"
 
 
 
@@ -24,7 +24,7 @@ class Agent : public Resource {
 	GDCLASS(Agent, Resource);
 
 	public:
-	std::map<std::string, Tensor<float>> state = {};
+	std::map<std::string, Tensor> state = {};
 	std::vector<std::string> stop_sequences = {};
 	ulong max_queued_tokens = 0;
 	float temperature = 0.9;
@@ -136,7 +136,7 @@ public:
 	void loadModel(String path, ulong max_batch = 50) {
 		max_agents = max_batch;
 		// model.loadFile(std::string(path.utf8().get_data()));
-		model = new RWKV(std::string(path.utf8().get_data()), max_batch, 2);
+		model = new RWKV(std::string(path.utf8().get_data()));
 	};
 
 	void loadTokenizer(String path) {
@@ -211,7 +211,7 @@ public:
 
 				for (ulong i = 0; i < toProcess.size(); i++) {
 					auto out = outputs[i];
-					auto token = typical(out.data, toProcess[i]->temperature, toProcess[i]->tau);
+					auto token = typical(flp(out.data), toProcess[i]->temperature, toProcess[i]->tau);
 					
 					toProcess[i]->max_queued_tokens -= 1;
 					

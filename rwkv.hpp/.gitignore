@@ -1,6 +1,0 @@
-*.pth
-*.safetensors
-# remove any filenames without extensions
-*.out
-/build
-

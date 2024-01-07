@@ -1,1 +1,0 @@
-cl /EHsc /O2 /std:c++17 /arch:AVX2 /I include rwkv.cpp /link /out:build\rwkv.exe
