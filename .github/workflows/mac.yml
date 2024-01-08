@@ -49,11 +49,16 @@ jobs:
 
 
 
-      - name: Setup Godot build cache
-        uses: ./.github/actions/godot-cache
+      - name: Load .scons_cache directory
+        id: mac-editor-cache${{ matrix.name }}
+        uses: actions/cache@v2
         with:
-          cache-name: ${{ matrix.cache-name }}
-        continue-on-error: true
+          path: ${{github.workspace}}/.scons_cache/
+          key: ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}
+          restore-keys: |
+            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}
+            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}
+            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}
 
       - name: Setup python and scons
         uses: ./.github/actions/godot-deps

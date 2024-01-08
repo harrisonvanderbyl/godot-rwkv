@@ -13,8 +13,18 @@ env:
 jobs:
   linux-editor:
     runs-on: "ubuntu-20.04"
-    name: Ubuntu
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Editor (target=editor)
+            cache-name: linux-editor-cache
+            target: editor
 
+          - name: Template (target=template_release)
+            cache-name: ubuntu-template
+            target: template_release
 
     steps:
       # Clone Godot
@@ -77,7 +87,7 @@ jobs:
 
       # Upload cache on completion and check it out now
       - name: Load .scons_cache directory
-        id: linux-editor-cache
+        id: ${{ matrix.cache-name }}
         uses: actions/cache@v2
         with:
           path: ${{github.workspace}}/.scons_cache/
@@ -112,14 +122,9 @@ jobs:
           SCONS_CACHE: ${{github.workspace}}/.scons_cache/
         run: |
           PATH=${GITHUB_WORKSPACE}/x86_64-godot-linux-gnu_sdk-buildroot/bin:$PATH
-          scons
+          scons target=${{ matrix.target }}
 
-      - name: Compilation
-        env:
-          SCONS_CACHE: ${{github.workspace}}/.scons_cache/
-        run: |
-          PATH=${GITHUB_WORKSPACE}/x86_64-godot-linux-gnu_sdk-buildroot/bin:$PATH
-          scons target=template_release
+      
 
       - name: Prepare artifact
         run: |

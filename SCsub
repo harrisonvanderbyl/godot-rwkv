@@ -19,12 +19,12 @@ if(env["PLATFORM"] != "win32"):
 
     
     
+    env_rwkv.Append(CCFLAGS=['-fexceptions'])
     
     # add -march=avx512
     print(env["platform"])
     if env["platform"] == "linuxbsd":
         print("Using linuxbsd")
-        env_rwkv.Append(CCFLAGS=['-fexceptions'])
         # add -O3
         env_rwkv.Append(CCFLAGS=['-O3'])
         # add -march=avx512

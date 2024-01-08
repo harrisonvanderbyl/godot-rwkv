@@ -1,4 +1,4 @@
-name: 🐧 Linux Builds
+name: 🤖 Android Builds
 on:
   push:
     branches: [ master, github_actions ]

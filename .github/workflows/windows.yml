@@ -16,7 +16,18 @@ jobs:
   windows-editor:
     # Windows 10 with latest image
     runs-on: "windows-latest"
-    name: win32
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Editor (target=editor, tests=yes)
+            cache-name: win-editor-cache
+            target: editor
+
+          - name: Template (target=template_release)
+            cache-name: win-template
+            target: template_release
 
     steps:
       # Clone Godot
@@ -47,7 +58,7 @@ jobs:
       # Upload cache on completion and check it out now
       # Editing this is pretty dangerous for Windows since it can break and needs to be properly tested with a fresh cache.
       - name: Load .scons_cache directory
-        id: windows-editor-cache
+        id: ${{ matrix.name }}
         #uses: ${{matrix.cache_action}}
         uses: actions/cache@v2
         with:
@@ -82,7 +93,8 @@ jobs:
         env:
           SCONS_CACHE: /.scons_cache/
         run: |
-          scons
+          scons target=${{ matrix.target }}
+          
 
       # Make build available
       - uses: actions/upload-artifact@v2
