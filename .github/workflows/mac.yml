@@ -1,7 +1,9 @@
 name: 🍎 macOS Builds
 on:
-  workflow_call:
-
+  push:
+    branches: [ master, github_actions ]
+  pull_request:
+    branches: [ master ]
 # Global Settings
 env:
   # Used for the cache key. Add version suffix to force clean build.
