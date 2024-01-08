@@ -23,7 +23,7 @@ jobs:
       matrix:
         include:
           - name: Editor (target=editor, tests=yes)
-            cache-name: macos-editor
+            cache-name: mac-editor-cache
             target: editor
 
           - name: Template (target=template_release)
@@ -50,7 +50,7 @@ jobs:
 
 
       - name: Load .scons_cache directory
-        id: mac-editor-cache${{ matrix.name }}
+        id: ${{ matrix.cache-name }}
         uses: actions/cache@v2
         with:
           path: ${{github.workspace}}/.scons_cache/
