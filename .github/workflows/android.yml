@@ -88,7 +88,7 @@ jobs:
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}
 
       - name: Load .scons_cache directory
-        id: android-cache
+        id: android-cache-64
         uses: actions/cache@v2
         with:
           path: ${{github.workspace}}/.scons_cache/64/
