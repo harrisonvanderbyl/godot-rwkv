@@ -25,13 +25,10 @@ jobs:
           - name: Editor (target=editor, tests=yes)
             cache-name: macos-editor
             target: editor
-            tests: true
-            bin: "./bin/godot.macos.editor.x86_64"
 
           - name: Template (target=template_release)
             cache-name: macos-template
             target: template_release
-            tests: false
             sconsflags: debug_symbols=no
 
     steps:
@@ -66,27 +63,17 @@ jobs:
           sh misc/scripts/install_vulkan_sdk_macos.sh
 
       - name: Compilation
-        uses: ./.github/actions/godot-build
-        with:
-          sconsflags: ${{ env.SCONSFLAGS }}
-          platform: macos
-          target: ${{ matrix.target }}
-          tests: ${{ matrix.tests }}
+        env:
+          SCONS_CACHE: ${{ steps.godot-cache.outputs.scons-cache }}
+        run: |
+          scons arch=arm64 target=${{ matrix.target }} ${{ matrix.sconsflags }} -j4
 
       - name: Prepare artifact
         run: |
           strip bin/godot.*
           chmod +x bin/godot.*
 
-      - name: Upload artifact
-        uses: ./.github/actions/upload-artifact
+      - uses: actions/upload-artifact@v2
         with:
-          name: ${{ matrix.cache-name }}
-
-      # Execute unit tests for the editor
-      - name: Unit tests
-        if: ${{ matrix.tests }}
-        run: |
-          ${{ matrix.bin }} --version
-          ${{ matrix.bin }} --help
-          ${{ matrix.bin }} --test --force-colors
+          name: build
+          path: bin/

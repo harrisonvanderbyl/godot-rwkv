@@ -77,7 +77,7 @@ jobs:
 
       # Upload cache on completion and check it out now
       - name: Load .scons_cache directory
-        id: linux-editor-cache
+        id: android-cache
         uses: actions/cache@v2
         with:
           path: ${{github.workspace}}/.scons_cache/
@@ -107,24 +107,26 @@ jobs:
       #     scons --version
 
       # We should always be explicit with our flags usage here since it's gonna be sure to always set those flags
-      - name: Compilation
+      - name: Compilation64
         env:
           SCONS_CACHE: ${{github.workspace}}/.scons_cache/
         run: |
           PATH=${GITHUB_WORKSPACE}/x86_64-godot-linux-gnu_sdk-buildroot/bin:$PATH
-          scons
+          scons arch=arm64 platform=android target=template_release 
 
-      - name: Compilation
+      - name: Compilation32
         env:
           SCONS_CACHE: ${{github.workspace}}/.scons_cache/
         run: |
           PATH=${GITHUB_WORKSPACE}/x86_64-godot-linux-gnu_sdk-buildroot/bin:$PATH
-          scons target=template_release
+          scons arch=arm32 platform=android target=template_release 
 
-      - name: Prepare artifact
+      - name: Generate Godot templates
         run: |
-          strip bin/godot.*
-          chmod +x bin/godot.*
+          cd platform/android/java
+          ./gradlew generateGodotTemplates
+          cd ../../..
+          ls -l bin/
 
       # Make build available
       - uses: actions/upload-artifact@v2
