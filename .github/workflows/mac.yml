@@ -70,7 +70,7 @@ jobs:
 
       - name: Compilation
         env:
-          SCONS_CACHE: ${{ steps.godot-cache.outputs.scons-cache }}
+          SCONS_CACHE: ${{github.workspace}}/.scons_cache/
         run: |
           scons arch=arm64 target=${{ matrix.target }} ${{ matrix.sconsflags }} -j4
 
