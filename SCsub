@@ -28,7 +28,7 @@ if(env["PLATFORM"] != "win32"):
         # add -O3
         env_rwkv.Append(CCFLAGS=['-O3'])
         # add -march=avx512
-        env_rwkv.Append(CCFLAGS=['-march=avx512'])
+        env_rwkv.Append(CCFLAGS=['-march=core-avx2'])
         
         # add fast math
         env_rwkv.Append(CCFLAGS=['-ffast-math'])
