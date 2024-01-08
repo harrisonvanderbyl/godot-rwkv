@@ -44,7 +44,9 @@ if(env["PLATFORM"] != "win32"):
         else:
             print("arm64")
             env_rwkv.Append(CCFLAGS=['-march=armv8.2-a+bf16'])
-        
+            # if platform is macos, set it to ignore all warnaserror
+            if env["platform"] == "macos":
+                env_rwkv.Append(CCFLAGS=['-Wno-error'])
     
     
     
