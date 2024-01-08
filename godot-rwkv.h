@@ -26,12 +26,12 @@ class Agent : public Resource {
 	public:
 	std::map<std::string, Tensor> state = {};
 	std::vector<std::string> stop_sequences = {};
-	ulong max_queued_tokens = 0;
+	size_t max_queued_tokens = 0;
 	float temperature = 0.9;
 	float tau = 0.7;
-	ulong last_token = 187;
+	size_t last_token = 187;
 	RWKVTokenizer* tokenizer = nullptr;
-	std::vector<ulong> context = {};
+	std::vector<size_t> context = {};
 	std::string add_context_queue = "";
 	bool busy = false;
 	
@@ -43,7 +43,7 @@ class Agent : public Resource {
 	Agent() {
 	}
 
-	ulong add_context(String contexta) {
+	size_t add_context(String contexta) {
 		// assert that add_context_queue is empty
 		// assert that max_queued_tokens is 0
 		if (max_queued_tokens != 0 || add_context_queue != "" || busy) {
@@ -62,7 +62,7 @@ class Agent : public Resource {
 		return busy;
 	}
 
-	void generate(ulong tokens){
+	void generate(size_t tokens){
 		max_queued_tokens = tokens;	
 	}
 
@@ -80,7 +80,7 @@ class Agent : public Resource {
 		}
 	}
 
-	void set_last_token(ulong token) {
+	void set_last_token(size_t token) {
 		last_token = token;
 	}
 
@@ -93,12 +93,12 @@ class Agent : public Resource {
 	}
 
 	// get last token
-	ulong get_last_token() {
+	size_t get_last_token() {
 		return last_token;
 	}
 
 	// get max queued tokens
-	ulong get_max_queued_tokens() {
+	size_t get_max_queued_tokens() {
 		return max_queued_tokens;
 	}
 
@@ -126,14 +126,14 @@ class GodotRWKV : public Resource {
 public:
 	RWKV* model = nullptr;
 	RWKVTokenizer* tokenizer = nullptr;
-	ulong lastToken = 187;
-	ulong max_agents = 50;
+	size_t lastToken = 187;
+	size_t max_agents = 50;
 	std::vector<Agent*> agents = {};
 	GodotRWKV() {
 		
 	}
 
-	void loadModel(String path, ulong max_batch = 50) {
+	void loadModel(String path, size_t max_batch = 50) {
 		max_agents = max_batch;
 		// model.loadFile(std::string(path.utf8().get_data()));
 		model = new RWKV(std::string(path.utf8().get_data()));
@@ -151,7 +151,7 @@ public:
 			// do context processing
 			if (agents.size() > 0) {
 				std::vector<Agent*> toProcess = {};
-				for (ulong i = 0; i < agents.size(); i++) {
+				for (size_t i = 0; i < agents.size(); i++) {
 					if (agents[i]->add_context_queue != "") {
 						std::cout << "processing context" << std::endl;
 						auto tokens = tokenizer->encode(agents[i]->add_context_queue);
@@ -162,10 +162,10 @@ public:
 						auto maxBatchSeqSize = max_agents;
 
 						// process tokens in batches of maxBatchSeqSize
-						for (ulong oi = 0; oi < tokens.size()-1; oi += maxBatchSeqSize) {
-							auto tokensBatch = std::vector<ulong>();
+						for (size_t oi = 0; oi < tokens.size()-1; oi += maxBatchSeqSize) {
+							auto tokensBatch = std::vector<size_t>();
 							tokensBatch.push_back(agents[i]->last_token);
-							for (ulong j = oi; j < MIN(oi + maxBatchSeqSize, tokens.size()-1); j++) {
+							for (size_t j = oi; j < MIN(oi + maxBatchSeqSize, tokens.size()-1); j++) {
 								tokensBatch.push_back(tokens[j]);
 							}
 							std::cout << "tokensBatch: " << oi << std::endl;
@@ -192,9 +192,9 @@ public:
 					}
 				}
 
-				std::vector<std::vector<ulong>> tokens = {};
+				std::vector<std::vector<size_t>> tokens = {};
 
-				for (ulong i = 0; i < toProcess.size(); i++) {
+				for (size_t i = 0; i < toProcess.size(); i++) {
 					tokens.push_back({toProcess[i]->last_token});
 					model->set_state(toProcess[i]->state, i);
 				}
@@ -206,10 +206,10 @@ public:
 				std::cout << "tokens: " << tokens.size() << std::endl;
 
 				auto outputs = (*model)(tokens);
-				// outputs.reshape({outputs.shape[0], ulong(pow(2, 16))});
+				// outputs.reshape({outputs.shape[0], size_t(pow(2, 16))});
 				std::cout << "outputs: " << outputs.shape[0] << ":" << outputs.shape[1] << ":" << outputs.shape[2] << std::endl;
 
-				for (ulong i = 0; i < toProcess.size(); i++) {
+				for (size_t i = 0; i < toProcess.size(); i++) {
 					auto out = outputs[i];
 					auto token = typical(flp(out.data), toProcess[i]->temperature, toProcess[i]->tau);
 					
@@ -220,10 +220,10 @@ public:
 					bool stopped = (token == 0);
 					if ((toProcess[i]->context.size() > 5) && token != 0){
 						std::cout << "last token: " << token << std::endl;
-						auto tokstocheck = std::vector<ulong>(toProcess[i]->context.end()-5, toProcess[i]->context.end());
+						auto tokstocheck = std::vector<size_t>(toProcess[i]->context.end()-5, toProcess[i]->context.end());
 						tokstocheck.push_back(token);
 						std::string context5toks = tokenizer->decode(tokstocheck);
-						for (ulong j = 0; j < toProcess[i]->stop_sequences.size(); j++) {
+						for (size_t j = 0; j < toProcess[i]->stop_sequences.size(); j++) {
 							auto stop_sequence = toProcess[i]->stop_sequences[j];
 							
 							if (context5toks.find(stop_sequence) != std::string::npos) {
@@ -256,8 +256,9 @@ public:
 			return Variant(agent);
 		}
 
-		// error_prulong("max_agents reached");
-	;
+		print_error("max agents reached");
+		return Variant();
+		
 	}
 	
 	protected:

@@ -8,14 +8,15 @@ env_rwkv = env_modules.Clone()
 # get cwd
 cenv = os.getcwd()
 
+env_rwkv.add_source_files(env.modules_sources, "./rwkv.cuh/src/cpuops.cpp")
+
+env_rwkv.add_source_files(env.modules_sources, "*.cpp")
 
 if(env["PLATFORM"] != "win32"):
     
 
     # add rwkv.cuh/src/cpuops.cpp
-    env_rwkv.add_source_files(env.modules_sources, "./rwkv.cuh/src/cpuops.cpp")
-    
-    env_rwkv.add_source_files(env.modules_sources, "*.cpp")
+
     
     
     
@@ -26,6 +27,8 @@ if(env["PLATFORM"] != "win32"):
         env_rwkv.Append(CCFLAGS=['-fexceptions'])
         # add -O3
         env_rwkv.Append(CCFLAGS=['-O3'])
+        # add -march=avx512
+        env_rwkv.Append(CCFLAGS=['-march=avx512'])
         
         # add fast math
         env_rwkv.Append(CCFLAGS=['-ffast-math'])
