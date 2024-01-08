@@ -43,7 +43,7 @@ class Agent : public Resource {
 	Agent() {
 	}
 
-	size_t add_context(String contexta) {
+	int add_context(String contexta) {
 		// assert that add_context_queue is empty
 		// assert that max_queued_tokens is 0
 		if (max_queued_tokens != 0 || add_context_queue != "" || busy) {
@@ -62,8 +62,8 @@ class Agent : public Resource {
 		return busy;
 	}
 
-	void generate(size_t tokens){
-		max_queued_tokens = tokens;	
+	void generate(int tokens){
+		max_queued_tokens = (size_t)tokens;	
 	}
 
 	void set_temperature(float temp) {
@@ -80,8 +80,8 @@ class Agent : public Resource {
 		}
 	}
 
-	void set_last_token(size_t token) {
-		last_token = token;
+	void set_last_token(int token) {
+		last_token = (size_t)token;
 	}
 
 	// threadsafe return context
@@ -93,13 +93,13 @@ class Agent : public Resource {
 	}
 
 	// get last token
-	size_t get_last_token() {
-		return last_token;
+	int get_last_token() {
+		return (int)last_token;
 	}
 
 	// get max queued tokens
-	size_t get_max_queued_tokens() {
-		return max_queued_tokens;
+	int get_max_queued_tokens() {
+		return (int)max_queued_tokens;
 	}
 
 	protected:
@@ -133,8 +133,8 @@ public:
 		
 	}
 
-	void loadModel(String path, size_t max_batch = 50) {
-		max_agents = max_batch;
+	void loadModel(String path, int max_batch = 50) {
+		max_agents = (size_t)max_batch;
 		// model.loadFile(std::string(path.utf8().get_data()));
 		model = new RWKV(std::string(path.utf8().get_data()));
 	};
