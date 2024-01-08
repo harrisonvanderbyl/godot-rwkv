@@ -80,13 +80,23 @@ jobs:
         id: android-cache
         uses: actions/cache@v2
         with:
-          path: ${{github.workspace}}/.scons_cache/
-          key: ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}
+          path: ${{github.workspace}}/.scons_cache/32/
+          key: ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-32
           restore-keys: |
-            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}
+            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-32
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}
 
+      - name: Load .scons_cache directory
+        id: android-cache
+        uses: actions/cache@v2
+        with:
+          path: ${{github.workspace}}/.scons_cache/64/
+          key: ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-64
+          restore-keys: |
+            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-64
+            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}
+            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}
       # [Already provided by the custom buildroot]
       # Use python 3.x release (works cross platform; best to keep self contained in it's own step)
       # - name: Set up Python 3.x
@@ -109,20 +119,23 @@ jobs:
       # We should always be explicit with our flags usage here since it's gonna be sure to always set those flags
       - name: Compilation64
         env:
-          SCONS_CACHE: ${{github.workspace}}/.scons_cache/
+          SCONS_CACHE: ${{github.workspace}}/.scons_cache/64/
         run: |
           PATH=${GITHUB_WORKSPACE}/x86_64-godot-linux-gnu_sdk-buildroot/bin:$PATH
           scons arch=arm64 platform=android target=template_release 
 
       - name: Compilation32
         env:
-          SCONS_CACHE: ${{github.workspace}}/.scons_cache/
+          SCONS_CACHE: ${{github.workspace}}/.scons_cache/32/
         run: |
           PATH=${GITHUB_WORKSPACE}/x86_64-godot-linux-gnu_sdk-buildroot/bin:$PATH
           scons arch=arm32 platform=android target=template_release 
 
+
       - name: Generate Godot templates
         run: |
+          PATH=${GITHUB_WORKSPACE}/x86_64-godot-linux-gnu_sdk-buildroot/bin:$PATH
+          scons --version
           cd platform/android/java
           ./gradlew generateGodotTemplates
           cd ../../..

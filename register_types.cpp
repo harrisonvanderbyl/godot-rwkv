@@ -29,7 +29,6 @@
 /*************************************************************************/
 
 #include "register_types.h"
-#include "core/io/resource_loader.h"
 
 // #include "loader_tflite.h"
 #include "godot-rwkv.h"
