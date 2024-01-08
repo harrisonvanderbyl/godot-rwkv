@@ -17,6 +17,11 @@ jobs:
 
 
     steps:
+      - name: Set up Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
       # Clone Godot
       - uses: actions/checkout@v2
         with:
