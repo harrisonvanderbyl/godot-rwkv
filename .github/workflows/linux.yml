@@ -90,10 +90,10 @@ jobs:
         id: linux-cache
         uses: actions/cache@v2
         with:
-          path: ${{github.workspace}}/.scons_cache/
-          key: ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-${{ matrix.target }}
+          path: ${{github.workspace}}/.scons_cache/${{matrix.target}}/
+          key: ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-${{matrix.target}}
           restore-keys: |
-            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-${{ matrix.target }}
+            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-${{matrix.target}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}
@@ -120,7 +120,7 @@ jobs:
       # We should always be explicit with our flags usage here since it's gonna be sure to always set those flags
       - name: Compilation
         env:
-          SCONS_CACHE: ${{github.workspace}}/.scons_cache/
+          SCONS_CACHE: ${{github.workspace}}/.scons_cache/${{matrix.target}}/
         run: |
           PATH=${GITHUB_WORKSPACE}/x86_64-godot-linux-gnu_sdk-buildroot/bin:$PATH
           scons target=${{matrix.target}}

@@ -53,10 +53,10 @@ jobs:
         id: godot-cache
         uses: actions/cache@v2
         with:
-          path: ${{github.workspace}}/.scons_cache/
-          key: ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-${{ matrix.target }}
+          path: ${{github.workspace}}/.scons_cache/${{matrix.target}}/
+          key: ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-${{matrix.target}}
           restore-keys: |
-            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-${{ matrix.target }}
+            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-${{matrix.target}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}
@@ -70,7 +70,7 @@ jobs:
 
       - name: Compilation
         env:
-          SCONS_CACHE: ${{github.workspace}}/.scons_cache/
+          SCONS_CACHE: ${{github.workspace}}/.scons_cache/${{matrix.target}}/
         run: |
           scons arch=arm64 target=${{ matrix.target }} ${{ matrix.sconsflags }} -j4
 

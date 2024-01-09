@@ -62,10 +62,10 @@ jobs:
         #uses: ${{matrix.cache_action}}
         uses: actions/cache@v2
         with:
-          path: /.scons_cache/
-          key: ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-${{ matrix.target }}
+          path: /.scons_cache/${{matrix.target}}/
+          key: ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-${{matrix.target}}
           restore-keys: |
-            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-${{ matrix.target }}
+            ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}-${{matrix.target}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}-${{github.sha}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}-${{github.ref}}
             ${{github.job}}-${{env.GODOT_BASE_BRANCH}}
@@ -92,9 +92,9 @@ jobs:
       # See https://github.com/godotengine/godot/issues/66537
       - name: Compilation
         env:
-          SCONS_CACHE: /.scons_cache/
+          SCONS_CACHE: /.scons_cache/${{matrix.target}}/
         run: |
-          scons target=${{ matrix.target }}
+          scons target=${{matrix.target}}
           
 
       # Make build available
