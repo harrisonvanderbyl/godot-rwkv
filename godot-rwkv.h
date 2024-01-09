@@ -89,7 +89,10 @@ class Agent : public Resource {
 		if (context.size() == 0) {
 			return "";
 		}
-		return String(tokenizer->decode(context).c_str());
+		auto contexta = tokenizer->decode(context);	
+		String contexts;
+		contexts.parse_utf8(contexta.c_str());
+		return contexts;
 	}
 
 	// get last token
