@@ -141,7 +141,7 @@ public:
 			return;
 		}
 
-		model = new RWKV(std::string(path.utf8().get_data()), size_t(NumThreads))
+		model = new RWKV(std::string(path.utf8().get_data()), size_t(NumThreads));
 	};
 
 	void loadTokenizer(String path) {
