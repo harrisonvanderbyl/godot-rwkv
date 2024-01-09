@@ -27,8 +27,8 @@ class Agent : public Resource {
 	std::map<std::string, Tensor> state = {};
 	std::vector<std::string> stop_sequences = {};
 	size_t max_queued_tokens = 0;
-	float temperature = 0.9;
-	float tau = 0.7;
+	float temperature = 3.0;
+	float tau = 0.6;
 	size_t last_token = 187;
 	RWKVTokenizer* tokenizer = nullptr;
 	std::vector<size_t> context = {};
