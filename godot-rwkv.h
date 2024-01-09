@@ -134,14 +134,14 @@ public:
 		
 	}
 
-	void loadModel(String path, size_t NumThreads = 8) {
+	void loadModel(String path, int NumThreads = 8) {
 		
 		if (NumThreads != 1 && NumThreads != 2 && NumThreads != 4 && NumThreads != 8) {
 			ERR_PRINT("NumThreads must be 8, 4, 2 or 1");
 			return;
 		}
 
-		model = new RWKV(std::string(path.utf8().get_data()), NumThreads);
+		model = new RWKV(std::string(path.utf8().get_data()), size_t(NumThreads))
 	};
 
 	void loadTokenizer(String path) {
