@@ -23,14 +23,19 @@ jobs:
           distribution: temurin
           java-version: 17
       # Clone Godot
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           repository: godotengine/godot
 
       # Clone our module under the correct directory
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           path: modules/rwkv
+
+      - uses: actions/checkout@v4
+        with:
+          repository: harrisonvanderbyl/treegen
+          path: modules/treegen
 
         # init submodules in the rwkv module
       - name: Init submodules

@@ -31,12 +31,16 @@ jobs:
 
     steps:
       # Clone Godot
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           repository: godotengine/godot
 
+      - uses: actions/checkout@v4
+        with:
+          repository: harrisonvanderbyl/treegen
+          path: modules/treegen
       # Clone our module under the correct directory
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           path: modules/rwkv
 

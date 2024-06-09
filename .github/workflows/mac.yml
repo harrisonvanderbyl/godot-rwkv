@@ -40,6 +40,11 @@ jobs:
         with:
           path: modules/rwkv
 
+      - uses: actions/checkout@v4
+        with:
+          repository: harrisonvanderbyl/treegen
+          path: modules/treegen
+
         # init submodules in the rwkv module
       - name: Init submodules
         run: |
